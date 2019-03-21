@@ -2,6 +2,7 @@
 Contract MPSs and / or MPOs
 Find ground state of am MPO
 Apply MPO to MPS
+Transform between MPS and MPO
 """
 
 import sys
@@ -206,256 +207,6 @@ def findGroundState(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 				contractR = contractMPSMPOR(gs, hamil, gs, pos+1, pos+1, contractR[0])
 	print()
 	return energy
-
-
-"""
-def compressMPS(initMPS, cutD, givenMPS = False, newMPS = MPS.MPS(1,1,1),
-					tol = 1e-5, maxRound = 0, silent = False):
-	print("Compress MPS")
-	L = initMPS.L
-	s = initMPS.sites[0].s
-	if (givenMPS == False):
-		newMPS = MPS.MPS(L, cutD, s)
-		newMPS.setRandomState()
-
-	newMPS.gaugeCondMixed(0, 0, L-1, cutD = cutD)
-	idMat = np.array([[1]], dtype=complex)
-	contractL = idMat
-	contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
-	dist0 = contractMPS(initMPS, initMPS)
-	overlap = contractMPS(initMPS, newMPS)
-	dist = dist0 + contractMPS(newMPS, newMPS) - overlap - np.conjugate(overlap)
-	dist = np.sqrt(np.abs(dist) / np.real(dist0))
-	lastDist = dist
-	print("Starting compressMPS with initial distance", dist)
-	totalStartTime = time.clock()
-
-	round = 0
-	done = False
-	pos = 0
-	right = True
-	while (done == False):
-		start = time.clock()
-		if (right == True):
-			opL = idMat if pos==0 else contractL[0]
-			opR = idMat if pos==L-1 else contractR[pos+1]
-		else:
-			opL = idMat if pos==0 else contractL[pos-1]
-			opR = idMat if pos==L-1 else contractR[0]
-
-		M = np.einsum('ij,kjm->ikm', opL, initMPS.sites[pos].A)
-		M = np.einsum('ikm,lm->kil', M, opR)
-
-		newMPS.sites[pos].A = M
-		#overlap = contractMPS(initMPS, newMPS)
-		#dist = dist0 + contractMPS(newMPS, newMPS) - overlap - np.conjugate(overlap)
-		overlap = np.einsum('ijk,ijk->', np.conj(M), M)
-		dist = dist0 - overlap
-		dist = np.sqrt(np.abs(dist) / np.real(dist0))
-
-		if (dist - lastDist > 1e-8):
-			if (dist - lastDist > 1e-8 * lastDist):
-				print("Error: distance is increasing! Old dist =", lastDist,
-					  "New dist =", dist)
-				exit(1)
-			else:
-				print("Warning: distance is increasing! Old dist =", lastDist,
-					  "New dist =", dist, "! Continue.")
-		end = time.clock()
-		if (silent==False):
-			print("Round", round, ", pos", pos,
-					", moving", "right ," if right==True else "left ,",
-					"distance", dist, ", wall time", end-start, "s")
-
-		if (right == True):
-			if (pos < L-1):
-				pos += 1
-				newMPS.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
-			else:
-				right = False
-				pos -= 1
-				round += 1
-				if (dist < tol):
-					done = True
-					print("Distance converged (", dist,
-						  "), total wall time", end - totalStartTime, "s")
-				elif (maxRound > 0 and round == maxRound):
-					done = True
-					print("Reached maximum round!")
-				else:
-					newMPS.gaugeCondMixed(pos, pos, pos+1, cutD=cutD)
-		else:
-			if (pos > 0):
-				pos -= 1
-				newMPS.gaugeCondMixed(pos, pos, pos+1, cutD=cutD)
-			else:
-				right = True
-				pos += 1
-				round += 1
-				if (dist < tol):
-					done = True
-					print("Distance converged", dist,
-						  ", total wall time", end - totalStartTime, "s")
-				elif (maxRound > 0 and round == maxRound):
-					done = True
-					print("Reached maximum round!")
-				else:
-					newMPS.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
-
-		if (right == True):
-			if (pos == 1):
-				contractL = contractMPSL(newMPS, initMPS, 0, 0, idMat)
-				contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
-			else:
-				contractL = contractMPSL(newMPS, initMPS, pos-1, pos-1, contractL[0])
-		else:
-			if (pos == L-2):
-				contractR = contractMPSR(newMPS, initMPS, L-1, L-1, idMat)
-				contractL = contractMPSL(newMPS, initMPS, 0, L-1, idMat)
-			else:
-				contractR = contractMPSR(newMPS, initMPS, pos+1, pos+1, contractR[0])
-	print()
-	return newMPS
-"""
-
-
-def compressMPS(initMPS, cutD, givenMPS = False, newMPS = MPS.MPS(1,1,1),
-					tol = 1e-7, maxRound = 0, silent = False):
-	print("Compress MPS")
-	L = initMPS.L
-	s = initMPS.sites[0].s
-	if (givenMPS == False):
-		newMPS = MPS.MPS(L, cutD, s)
-		newMPS.setRandomState()
-
-	newMPS.gaugeCondMixed(0, 0, L-1, cutD = cutD)
-	idMat = np.array([[1]], dtype=complex)
-	contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
-	dist0 = contractMPS(initMPS, initMPS)
-	overlap = contractMPS(initMPS, newMPS)
-	dist = dist0 + contractMPS(newMPS, newMPS) - overlap - np.conjugate(overlap)
-	dist = np.sqrt(np.abs(dist) / np.real(dist0))
-	lastDist = dist
-	print("Starting compressMPS with initial distance", dist)
-	totalStartTime = time.clock()
-
-	round = 0
-	done = False
-	pos = 0
-	right = True
-	while (done == False):
-		start = time.clock()
-		if (right == True):
-			opL = idMat if pos==0 else contractL[0]
-			opR = idMat if pos==L-2 else contractR[pos+2]
-		else:
-			opL = idMat if pos==0 else contractL[pos-1]
-			opR = idMat if pos==L-2 else contractR[0]
-
-		M = np.einsum('ij,pjk->ipk', opL, initMPS.sites[pos].A)
-		M = np.einsum('ipk,qkl->ipql', M, initMPS.sites[pos+1].A)
-		M = np.einsum('ipql,ml->piqm', M, opR)
-
-		M = M.reshape((M.shape[0]*M.shape[1], M.shape[2]*M.shape[3]))
-		U, S, Vdag = LA.svd(M, full_matrices=False)
-		if (S.shape[0]>cutD):
-			U = U[:,:cutD]
-			#print(np.sum(S[0:cut]**2)/np.sum(S**2))
-			S = S[0:cutD]
-			Vdag = Vdag[0:cutD,:]
-		if (right == True):
-			SV = np.einsum('i,ij->ij', S, Vdag)
-			SV = np.swapaxes(SV.reshape((-1, s, newMPS.sites[pos+1].Dr)), 0, 1)
-			newMPS.setA(pos, U.reshape((s,newMPS.sites[pos].Dl,-1)))
-			newMPS.setA(pos+1, SV)
-		else:
-			US = np.einsum('ij,j->ij', U, S)
-			Vdag = np.swapaxes(Vdag.reshape((-1, s, newMPS.sites[pos+1].Dr)), 0, 1)
-			newMPS.setA(pos, US.reshape((s,newMPS.sites[pos].Dl,-1)))
-			newMPS.setA(pos+1, Vdag)
-
-
-		overlap = np.einsum('ij,ij->', np.conj(M), M)
-		dist = dist0 - overlap
-		dist = np.sqrt(np.abs(dist) / np.real(dist0))
-
-		if (dist - lastDist > 1e-8):
-			if (dist - lastDist > 1e-8 * lastDist):
-				print("Error: distance is increasing! Old dist =", lastDist,
-					  "New dist =", dist)
-				exit(1)
-			else:
-				print("Warning: distance is increasing! Old dist =", lastDist,
-					  "New dist =", dist, "! Continue.")
-		end = time.clock()
-
-		if (silent==False):
-			print("Round", round, ", pos", pos,
-					", moving", "right ," if right==True else "left ,",
-					"distance", dist, ", wall time", end-start, "s")
-
-		if (right == True):
-			if (pos < L-2):
-				pos += 1
-			else:
-				right = False
-				pos -= 1
-				round += 1
-				if (dist < tol):
-					done = True
-					print("Distance converged (", dist,
-						  "), total wall time", end - totalStartTime, "s")
-				elif (maxRound > 0 and round == maxRound):
-					done = True
-					print("Reached maximum round!")
-				else:
-					newMPS.gaugeCondMixed(pos, pos, L-1, cutD=cutD)
-		else:
-			if (pos > 0):
-				pos -= 1
-			else:
-				right = True
-				pos += 1
-				round += 1
-				if (dist < tol):
-					done = True
-					print("Distance converged", dist,
-						  ", total wall time", end - totalStartTime, "s")
-				elif (maxRound > 0 and round == maxRound):
-					done = True
-					print("Reached maximum round!")
-				else:
-					newMPS.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
-
-		if (right == True):
-			if (pos == 1):
-				contractL = contractMPSL(newMPS, initMPS, 0, 0, idMat)
-				contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
-			else:
-				contractL = contractMPSL(newMPS, initMPS, pos-1, pos-1, contractL[0])
-		else:
-			if (pos == L-3):
-				contractR = contractMPSR(newMPS, initMPS, L-1, L-1, idMat)
-				contractL = contractMPSL(newMPS, initMPS, 0, L-1, idMat)
-			else:
-				contractR = contractMPSR(newMPS, initMPS, pos+2, pos+2, contractR[0])
-	print()
-	return newMPS
-
-
-def exactApplyMPO(op, ket):
-	if (op.L != ket.L):
-		print("Error: inconsistent length!")
-		exit(1)
-	else:
-		L = ket.L
-	newKet = MPS.MPS(L,1,1)
-	for i in range(L):
-		tmp = np.einsum('ijkl,jmn->ikmln', op.ops[i].A, ket.sites[i].A)
-		tmp = tmp.reshape((op.ops[i].s, ket.sites[i].Dl*op.ops[i].Dl,
-								  ket.sites[i].Dr*op.ops[i].Dr))
-		newKet.setA(i, tmp)
-	return newKet
 
 
 """
@@ -709,10 +460,12 @@ def exactApplyMPO(op, ket):
 		newKet.setA(i, tmp)
 	return newKet
 
-t
-
 
 def fitApplyMPO(op, ket, cutD, tol=1e-7):
 	newKet = exactApplyMPO(op, ket)
 	newKet = compressMPS(newKet, cutD, tol=tol)
 	return newKet
+
+
+def sumMPS(kets, coef, cutD):
+	num = len(kets)
