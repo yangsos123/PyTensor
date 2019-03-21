@@ -22,7 +22,7 @@ class MPO:
 
 	def setA(self, k, Ak):
 		if (Ak.shape[0]!=Ak.shape[1]):
-			print("Error: different physical dimensions")
+			print("Error: inconsistent physical dimension!")
 			exit(2)
 		elif (k<0 or k>=self.L):
 			print("Error: k",k,"out of range!")
@@ -44,6 +44,13 @@ class MPO:
 
 
 def MPSfromMPO(mpo):
+	"""
+	Input:             Return:
+	mpo:
+	i1 i2      iL      i1j1 i2j2      iLjL
+	├  ┼ ... ┼ ┤        └    ┴  ... ┴  ┘
+	j1 j2      jL
+	"""
 	L = mpo.L
 	mps = MPS.MPS(L, 1, 1)
 	for i in range(L):
@@ -54,6 +61,7 @@ def MPSfromMPO(mpo):
 
 
 def MPOfromMPS(mps):
+	# Inverse transformation of MPSfromMPO
 	L = mps.L
 	mpo = MPO(L, 1, 1)
 	for i in range(L):
@@ -64,6 +72,7 @@ def MPOfromMPS(mps):
 
 
 def extendMPO(simpleMPO):
+	# Make an MPO compatible with MPS got from MPSfromMPO
 	L = simpleMPO.L
 	doubleMPO = MPO(L, 1, 1)
 	for i in range(L):

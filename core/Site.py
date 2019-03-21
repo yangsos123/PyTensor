@@ -15,6 +15,11 @@ class site:
 		self.A = np.zeros((s, Dl, Dr), dtype=complex)
 
 	def gaugeR(self, L, cutD):
+		"""
+		Left multiply a matrix L to A, then do SVD (if need to reduce bond
+		dimension) / QR decomposition. Set value of A to Herimitian matrix
+		and return the rest (right) part.
+		"""
 		self.A = np.einsum('ij,kjl->kil', L, self.A)
 		self.Dl = self.A.shape[1]
 		R = 0

@@ -1,8 +1,8 @@
 """
 Contract MPSs and / or MPOs
-Find ground state of am MPO
+Find ground state of am MPO (DMRG)
+Sum up / compress MPS
 Apply MPO to MPS
-Transform between MPS and MPO
 """
 
 import sys
@@ -13,16 +13,24 @@ import numpy.random
 import scipy.linalg as LA
 import scipy.sparse.linalg as sp_linalg
 
-sys.path.append("MPS.py")
 import MPS
-sys.path.append("MPO.py")
 import MPO
 
 
 def contractMPSL(bra, ket, start, end, left):
+	"""
+	Input: left =
+	bra ┌ ┬ ... ┬
+	ket └ ┴ ... ┴       if start>0 and [[1]] if start==0
+	    0 1 ... start-1
+	Return a list of length end-start+1:
+	  bra ┌ ┬ ... ┬                 bra ┌ ┬ ... ┬
+	[ ket └ ┴ ... ┴        ...      ket └ ┴ ... ┴   ]
+	      0 1 ... start,         ,      0 1 ... end
+	"""
 	if (bra.L != ket.L):
 		print("Error: inconsistent length!")
-		exit(1)
+		exit(2)
 	else:
 		L = bra.L
 
@@ -38,9 +46,10 @@ def contractMPSL(bra, ket, start, end, left):
 
 
 def contractMPSR(bra, ket, start, end, right):
+	# Similar to contractMPSL, but start from the right
 	if (bra.L != ket.L):
 		print("Error: inconsistent length!")
-		exit(1)
+		exit(2)
 	else:
 		L = bra.L
 
@@ -56,14 +65,16 @@ def contractMPSR(bra, ket, start, end, right):
 
 
 def contractMPS(bra, ket):
+	# Give the overlap of bra and ket
 	left = np.array([[1]])
 	return np.complex(contractMPSL(bra, ket, 0, bra.L-1, left)[-1])
 
 
 def contractMPSMPOL(bra, op, ket, start, end, left):
+	# Similar to contractMPS series, with an operator between bra and ket
 	if (bra.L != ket.L or bra.L != op.L):
 		print("Error: inconsistent length!")
-		exit(1)
+		exit(2)
 	else:
 		L = bra.L
 
@@ -83,7 +94,7 @@ def contractMPSMPOL(bra, op, ket, start, end, left):
 def contractMPSMPOR(bra, op, ket, start, end, right):
 	if (bra.L != ket.L or bra.L != op.L):
 		print("Error: inconsistent length!")
-		exit(1)
+		exit(2)
 	else:
 		L = bra.L
 	allRes = []
@@ -104,7 +115,13 @@ def contractMPSMPO(bra, op, ket):
 	return np.complex(contractMPSMPOL(bra, op, ket, 0, bra.L-1, left)[-1])
 
 
-def findGroundState(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
+def dmrg(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
+	"""
+	DMRG
+	Input an MPO Hamiltonian (hamil) and an initial state (gs)
+	Return the ground state energy and the ground state vector is stored in gs
+	Algorithm: see arXiv:1008.3477v2, Chapter 6.3
+	"""
 	L = hamil.L
 	gs.adjustD(cutD)
 	gs.gaugeCondMixed(0,0,L-1, cutD=cutD)
@@ -119,6 +136,7 @@ def findGroundState(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 	pos = 0
 	right = True
 	totalStartTime = time.clock()
+	# Sweep and optimize until convergence
 	while (done == False):
 		start = time.clock()
 		if (right == True):
@@ -127,23 +145,38 @@ def findGroundState(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 		else:
 			opL = idMat if pos==0 else contractL[pos-1]
 			opR = idMat if pos==L-1 else contractR[0]
+		"""
+		opL =                   opR =
+		gs     ┌ ┬ ... ┬        gs     ┬ ...  ┬   ┐
+		hamil  ├ ┼ ... ┼        hamil  ┼ ...  ┼   ┤
+		gs     └ ┴ ... ┴        gs     ┴ ...  ┴   ┘
+		       0 1 ... pos-1       pos+1 ... L-2 L-1
+		"""
 
 		Hp = np.einsum('ijk,pqjn->ikpqn', opL, hamil.ops[pos].A)
 		Hp = np.einsum('ikpqn,mnl->pimqkl', Hp, opR)
 		HpDim = gs.sites[pos].s*gs.sites[pos].Dl*gs.sites[pos].Dr
-		#print(gs.sites[pos].s, gs.sites[pos].Dl, gs.sites[pos].Dr)
 		Hp = Hp.reshape((HpDim, HpDim))
+		"""
+		Hp =
+		gs       ┌ ┬ ... ┬ i   m ┬ ...  ┬   ┐
+                             p
+		hamil    ├ ┼ ... ┼ j ┼ n ┼ ...  ┼   ┤
+                             q
+		gs       └ ┴ ... ┴ k   l ┴ ...  ┴   ┘
+		         0 1 ...     pos   ... L-2 L-1
+		"""
 		w, M = sp_linalg.eigs(Hp, k=1, which='SR')
-		#print("W ",w,"M ", M)
 		newEnergy = np.real(w[0])
 		newSitePos = M[:,0]
 		gs.sites[pos].A = newSitePos.reshape((gs.sites[pos].s,
 			gs.sites[pos].Dl, gs.sites[pos].Dr))
+
 		if (newEnergy-energy > 1e-8 and newEnergy-energy > np.abs(energy)*1e-10):
 			if (newEnergy-energy > np.abs(energy)*tol):
 				print("Error: energy is increasing! Old energy =", energy,
 					  "New energy =", newEnergy)
-				exit(1)
+				exit(3)
 			else:
 				print("Warning: energy is increasing! Old energy =", energy,
 					  "New energy =", newEnergy, "! Continue.")
@@ -209,27 +242,55 @@ def findGroundState(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 	return energy
 
 
-"""
-def compressMPS(initMPS, cutD, givenMPS = False, newMPS = MPS.MPS(1,1,1),
-					tol = 1e-5, maxRound = 0, silent = False):
-	# One site version
-	print("Compress MPS")
-	L = initMPS.L
-	s = initMPS.sites[0].s
+def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
+					tol = 1e-7, maxRound = 0, silent = False, compress = False):
+	"""
+	Sum up MPS.
+	Input:  a list of MPS and a list of corresponding coefficients
+	Output: approximation of their sum in MPS with bond dimension cutD
+	Algorithm: see also arXiv:1008.3477v2, Chapter 4.5.2, in compressing MPS.
+		Only need to add up all M (P in the paper) with coefficients as weights.
+		Here each time two sites are modified together.
+	"""
+	num = len(kets)
+	if (compress == False):
+		print("Sum up MPS")
+	L = kets[0].L
+	s = kets[0].sites[0].s
+	for i in range(num):
+		if kets[i].L != L:
+			print("Error: inconsistent length!")
+			exit(2)
+		if kets[i].sites[0].s != s:
+			print("Error: inconsistent physical dimension!")
+			exit(2)
 	if (givenMPS == False):
 		newMPS = MPS.MPS(L, cutD, s)
 		newMPS.setRandomState()
 
 	newMPS.gaugeCondMixed(0, 0, L-1, cutD = cutD)
 	idMat = np.array([[1]], dtype=complex)
-	contractL = idMat
-	contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
-	dist0 = contractMPS(initMPS, initMPS)
-	overlap = contractMPS(initMPS, newMPS)
-	dist = dist0 + contractMPS(newMPS, newMPS) - overlap - np.conjugate(overlap)
+	contractL = []
+	contractR = []
+	for i in range(num):
+		contractL.append([idMat])
+		contractR.append(contractMPSR(newMPS, kets[i], 0, L-1, idMat))
+
+	dist0 = 0
+	for i in range(num):
+		dist0 += contractMPS(kets[i], kets[i]) * np.abs(coef[i]) ** 2
+		for j in range(i):
+			tmp = contractMPS(kets[i], kets[j]) * coef[j] * np.conj(coef[i])
+			dist0 += tmp + np.conj(tmp)
+
+	overlap = 0
+	for i in range(num):
+		overlap += contractMPS(kets[i], newMPS) * np.conj(coef[i])
+
+	dist = dist0 + contractMPS(newMPS, newMPS) - overlap - np.conj(overlap)
 	dist = np.sqrt(np.abs(dist) / np.real(dist0))
 	lastDist = dist
-	print("Starting compressMPS with initial distance", dist)
+	print("Starting with initial distance", dist)
 	totalStartTime = time.clock()
 
 	round = 0
@@ -238,126 +299,33 @@ def compressMPS(initMPS, cutD, givenMPS = False, newMPS = MPS.MPS(1,1,1),
 	right = True
 	while (done == False):
 		start = time.clock()
-		if (right == True):
-			opL = idMat if pos==0 else contractL[0]
-			opR = idMat if pos==L-1 else contractR[pos+1]
-		else:
-			opL = idMat if pos==0 else contractL[pos-1]
-			opR = idMat if pos==L-1 else contractR[0]
-
-		M = np.einsum('ij,kjm->ikm', opL, initMPS.sites[pos].A)
-		M = np.einsum('ikm,lm->kil', M, opR)
-
-		newMPS.sites[pos].A = M
-		#overlap = contractMPS(initMPS, newMPS)
-		#dist = dist0 + contractMPS(newMPS, newMPS) - overlap - np.conjugate(overlap)
-		overlap = np.einsum('ijk,ijk->', np.conj(M), M)
-		dist = dist0 - overlap
-		dist = np.sqrt(np.abs(dist) / np.real(dist0))
-
-		if (dist - lastDist > 1e-8):
-			if (dist - lastDist > 1e-8 * lastDist):
-				print("Error: distance is increasing! Old dist =", lastDist,
-					  "New dist =", dist)
-				exit(1)
+		opL = []
+		opR = []
+		for i in range(num):
+			if (right == True):
+				tmpOpL = idMat if pos==0 else contractL[i][0]
+				tmpOpR = idMat if pos==L-2 else contractR[i][pos+2]
 			else:
-				print("Warning: distance is increasing! Old dist =", lastDist,
-					  "New dist =", dist, "! Continue.")
-		end = time.clock()
-		if (silent==False):
-			print("Round", round, ", pos", pos,
-					", moving", "right ," if right==True else "left ,",
-					"distance", dist, ", wall time", end-start, "s")
+				tmpOpL = idMat if pos==0 else contractL[i][pos-1]
+				tmpOpR = idMat if pos==L-2 else contractR[i][0]
+			opL.append(tmpOpL)
+			opR.append(tmpOpR)
 
-		if (right == True):
-			if (pos < L-1):
-				pos += 1
-				newMPS.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
-			else:
-				right = False
-				pos -= 1
-				round += 1
-				if (dist < tol):
-					done = True
-					print("Distance converged (", dist,
-						  "), total wall time", end - totalStartTime, "s")
-				elif (maxRound > 0 and round == maxRound):
-					done = True
-					print("Reached maximum round!")
-				else:
-					newMPS.gaugeCondMixed(pos, pos, pos+1, cutD=cutD)
-		else:
-			if (pos > 0):
-				pos -= 1
-				newMPS.gaugeCondMixed(pos, pos, pos+1, cutD=cutD)
-			else:
-				right = True
-				pos += 1
-				round += 1
-				if (dist < tol):
-					done = True
-					print("Distance converged", dist,
-						  ", total wall time", end - totalStartTime, "s")
-				elif (maxRound > 0 and round == maxRound):
-					done = True
-					print("Reached maximum round!")
-				else:
-					newMPS.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
-
-		if (right == True):
-			if (pos == 1):
-				contractL = contractMPSL(newMPS, initMPS, 0, 0, idMat)
-				contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
-			else:
-				contractL = contractMPSL(newMPS, initMPS, pos-1, pos-1, contractL[0])
-		else:
-			if (pos == L-2):
-				contractR = contractMPSR(newMPS, initMPS, L-1, L-1, idMat)
-				contractL = contractMPSL(newMPS, initMPS, 0, L-1, idMat)
-			else:
-				contractR = contractMPSR(newMPS, initMPS, pos+1, pos+1, contractR[0])
-	print()
-	return newMPS
-"""
-
-
-def compressMPS(initMPS, cutD, givenMPS = False, newMPS = MPS.MPS(1,1,1),
-					tol = 1e-7, maxRound = 0, silent = False):
-	# Two site version
-	print("Compress MPS")
-	L = initMPS.L
-	s = initMPS.sites[0].s
-	if (givenMPS == False):
-		newMPS = MPS.MPS(L, cutD, s)
-		newMPS.setRandomState()
-
-	newMPS.gaugeCondMixed(0, 0, L-1, cutD = cutD)
-	idMat = np.array([[1]], dtype=complex)
-	contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
-	dist0 = contractMPS(initMPS, initMPS)
-	overlap = contractMPS(initMPS, newMPS)
-	dist = dist0 + contractMPS(newMPS, newMPS) - overlap - np.conjugate(overlap)
-	dist = np.sqrt(np.abs(dist) / np.real(dist0))
-	lastDist = dist
-	print("Starting compressMPS with initial distance", dist)
-	totalStartTime = time.clock()
-
-	round = 0
-	done = False
-	pos = 0
-	right = True
-	while (done == False):
-		start = time.clock()
-		if (right == True):
-			opL = idMat if pos==0 else contractL[0]
-			opR = idMat if pos==L-2 else contractR[pos+2]
-		else:
-			opL = idMat if pos==0 else contractL[pos-1]
-			opR = idMat if pos==L-2 else contractR[0]
-
-		M = np.einsum('ij,pjk->ipk', opL, initMPS.sites[pos].A)
-		M = np.einsum('ipk,qkl->ipql', M, initMPS.sites[pos+1].A)
-		M = np.einsum('ipql,ml->piqm', M, opR)
+		M = np.zeros((newMPS.sites[pos].s,newMPS.sites[pos].Dl,
+				      newMPS.sites[pos+1].s,newMPS.sites[pos+1].Dr),
+					 dtype=complex)
+		for i in range(num):
+			tmpM = np.einsum('ij,pjk->ipk', opL[i], kets[i].sites[pos].A)
+			tmpM = np.einsum('ipk,qkl->ipql', tmpM, kets[i].sites[pos+1].A)
+			tmpM = np.einsum('ipql,ml->piqm', tmpM, opR[i])
+			M += tmpM * coef[i]
+			"""
+			tmpM =
+			newMPS       ┌ ┬ ... ┬ i       m ┬  ...  ┬   ┐
+	                                 p   q
+			kets[i]      └ ┴ ... ┴ j ┴ k ┴ l ┴  ...  ┴   ┘
+			             0 1 ...    pos pos+1   ... L-2 L-1
+			"""
 
 		M = M.reshape((M.shape[0]*M.shape[1], M.shape[2]*M.shape[3]))
 		U, S, Vdag = LA.svd(M, full_matrices=False)
@@ -382,18 +350,19 @@ def compressMPS(initMPS, cutD, givenMPS = False, newMPS = MPS.MPS(1,1,1),
 		dist = dist0 - overlap
 		dist = np.sqrt(np.abs(dist) / np.real(dist0))
 
+
 		if (dist - lastDist > 1e-8):
 			if (dist - lastDist > 1e-8 * lastDist):
 				print("Error: distance is increasing! Old dist =", lastDist,
 					  "New dist =", dist)
-				exit(1)
+				exit(3)
 			else:
 				print("Warning: distance is increasing! Old dist =", lastDist,
 					  "New dist =", dist, "! Continue.")
 		end = time.clock()
 
 		if (silent==False):
-			print("Round", round, ", pos", pos,
+			print("Round", round, ", pos", pos, "and", pos+1,
 					", moving", "right ," if right==True else "left ,",
 					"distance", dist, ", wall time", end-start, "s")
 
@@ -430,26 +399,38 @@ def compressMPS(initMPS, cutD, givenMPS = False, newMPS = MPS.MPS(1,1,1),
 				else:
 					newMPS.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
 
-		if (right == True):
-			if (pos == 1):
-				contractL = contractMPSL(newMPS, initMPS, 0, 0, idMat)
-				contractR = contractMPSR(newMPS, initMPS, 0, L-1, idMat)
+		for i in range(num):
+			if (right == True):
+				if (pos == 1):
+					contractL[i]=contractMPSL(newMPS, kets[i], 0, 0, idMat)
+					contractR[i]=contractMPSR(newMPS, kets[i], 0, L-1, idMat)
+				else:
+					contractL[i]=contractMPSL(newMPS, kets[i], pos-1, pos-1,
+											  contractL[i][0])
 			else:
-				contractL = contractMPSL(newMPS, initMPS, pos-1, pos-1, contractL[0])
-		else:
-			if (pos == L-3):
-				contractR = contractMPSR(newMPS, initMPS, L-1, L-1, idMat)
-				contractL = contractMPSL(newMPS, initMPS, 0, L-1, idMat)
-			else:
-				contractR = contractMPSR(newMPS, initMPS, pos+2, pos+2, contractR[0])
+				if (pos == L-3):
+					contractR[i]=contractMPSR(newMPS, kets[i], L-1, L-1, idMat)
+					contractL[i]=contractMPSL(newMPS, kets[i], 0, L-1, idMat)
+				else:
+					contractR[i]=contractMPSR(newMPS, kets[i], pos+2, pos+2,
+											  contractR[i][0])
 	print()
 	return newMPS
 
 
+def compressMPS(initMPS, cutD, givenMPS = False, newMPS = 0,
+					tol = 1e-7, maxRound = 0, silent = False):
+	# Call sumMPS
+	print("Compress MPS")
+	return sumMPS([initMPS], [1.], cutD, givenMPS = givenMPS, newMPS = newMPS,
+		tol = tol, maxRound = maxRound, silent = silent, compress = True)
+
+
 def exactApplyMPO(op, ket):
+	# Act an MPO on an MPS exactly
 	if (op.L != ket.L):
 		print("Error: inconsistent length!")
-		exit(1)
+		exit(2)
 	else:
 		L = ket.L
 	newKet = MPS.MPS(L,1,1)
@@ -462,10 +443,7 @@ def exactApplyMPO(op, ket):
 
 
 def fitApplyMPO(op, ket, cutD, tol=1e-7):
+	# First act exactly, then compress
 	newKet = exactApplyMPO(op, ket)
 	newKet = compressMPS(newKet, cutD, tol=tol)
 	return newKet
-
-
-def sumMPS(kets, coef, cutD):
-	num = len(kets)
