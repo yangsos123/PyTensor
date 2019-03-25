@@ -1,12 +1,12 @@
 import sys
 import random
 import numpy as np
-from scipy.misc import comb
 
 sys.path.append("core")
+sys.path.append("models")
 import MPS
 import MPO
-import Models as md
+import SpinModels as SpMd
 import Contractor as ct
 
 L = 10
@@ -17,8 +17,9 @@ Jz = 1.*np.ones(L)
 g = 0.5*np.ones(L)
 h = 1.5*np.ones(L)
 offset = 0
-HeiModel = md.Heisenberg(L, Jx, Jy, Jz, g, h, offset)
-H = HeiModel.hamil
+IsingModel = SpMd.Ising(L, Jz, g, h, offset)
+H = IsingModel.hamil
+
 
 # Test of DMRG
 gs = MPS.MPS(L, D, 2)
@@ -44,6 +45,6 @@ for i in range(5):
 	tmpCoef = random.random()
 	coef.append(tmpCoef)
 	overlapGs += ct.contractMPS(tmpMPS, gs) * tmpCoef
-sumRandMPS = ct.sumMPS(randMPS, coef, D)
+sumRandMPS = ct.sumMPS(randMPS, coef, D, silent=True)
 print("Sum of overlap:", overlapGs)
 print("Overlap of sum:", ct.contractMPS(sumRandMPS, gs))

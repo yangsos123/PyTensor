@@ -1,6 +1,7 @@
 """
-Define MPS, do gauge transformations, change dimension and initialize with
-random state or product state
+Define MPS
+Transform an MPS into (mixed) canonical form
+Set an MPS to a random or product state
 """
 
 import sys
@@ -15,7 +16,7 @@ class MPS:
 	def __init__(self, L, D, s):
 		self.L = L			# length
 		self.sites = []
-		self.D = D
+		self.D = D			# D = max{Dl, Dr}
 		for i in range(L):
 			self.sites.append(Site.site(s,
 				1 if i==0 else D, 1 if i==L-1 else D))
@@ -91,16 +92,17 @@ class MPS:
 			self = ct.compressMPS(self, DPrime, silent=True)
 		else:
 			# Enlarge
-			DrPrime = DPrime if i < L-1 else 1
-			self.sites[i].A = np.append(self.sites[i].A,
-				np.zeros((self.sites[i].s, self.sites[i].Dl,
-						  DrPrime - self.sites[i].Dr)), axis=2)
-			self.sites[i].Dr = DrPrime
-			DlPrime = DPrime if i > 0 else 1
-			self.sites[i].A = np.append(self.sites[i].A,
-				np.zeros((self.sites[i].s, DlPrime - self.sites[i].Dl,
-						  self.sites[i].Dr)), axis=1)
-			self.sites[i].Dl = DlPrime
+			for i in range(self.L):
+				DrPrime = DPrime if i < self.L-1 else 1
+				self.sites[i].A = np.append(self.sites[i].A,
+					np.zeros((self.sites[i].s, self.sites[i].Dl,
+							  DrPrime - self.sites[i].Dr)), axis=2)
+				self.sites[i].Dr = DrPrime
+				DlPrime = DPrime if i > 0 else 1
+				self.sites[i].A = np.append(self.sites[i].A,
+					np.zeros((self.sites[i].s, DlPrime - self.sites[i].Dl,
+							  self.sites[i].Dr)), axis=1)
+				self.sites[i].Dl = DlPrime
 			self.D = DPrime
 
 
