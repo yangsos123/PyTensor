@@ -1,6 +1,7 @@
 """
-Define MPO and some common Hamiltonians
+Define MPO
 Transform between MPS and MPO
+Get MPO of real / imaginary revolution operator
 """
 
 import sys

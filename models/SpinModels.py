@@ -1,6 +1,6 @@
 """
 Currently only support spin-half models
-Generate Hamiltonians of
+Generate Hamiltonians / time evolution MPOs of
 	Ising model
 	Heiseneberg model
 Get SumSx, Sy, Sz (squared)
@@ -87,6 +87,18 @@ class Heisenberg:
 							 [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0], [1,0,0,0] ]
 						   ])
 			self.hamil.ops[i].A = np.einsum('ijk,kml->mlij', opM, PauliSigma)
+
+	def getUMPOHeisenberg(self, t, imag=True):
+		# Only when the model is translational invariant!
+		hi = self.Jx[0]*np.kron(PauliSigma[1, :, :], PauliSigma[1, :, :]) + \
+			 self.Jy[0]*np.kron(PauliSigma[2, :, :], PauliSigma[2, :, :]) + \
+			 self.Jz[0]*np.kron(PauliSigma[3, :, :], PauliSigma[3, :, :]) + \
+			 self.h[0]*np.kron(PauliSigma[3, :, :], PauliSigma[0, :, :]) + \
+			 self.g[0]*np.kron(PauliSigma[1, :, :], PauliSigma[0, :, :])
+
+		hL = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
+		hR = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
+		return MPO.getUMPO(self.L, 2, hi, hL, hR, t, imag)
 
 
 def getSumSxMPO(L):

@@ -1,8 +1,12 @@
 """
+Algorithms for MPS and MPO
+
 Contract MPSs and / or MPOs
 Find ground state of am MPO (DMRG)
 Sum up / compress MPS
 Apply MPO to MPS
+Product of MPOs
+Trace of MPO
 """
 
 import sys
