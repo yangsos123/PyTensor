@@ -445,5 +445,37 @@ def exactApplyMPO(op, ket):
 def fitApplyMPO(op, ket, cutD, tol=1e-7):
 	# First act exactly, then compress
 	newKet = exactApplyMPO(op, ket)
-	newKet = compressMPS(newKet, cutD, tol=tol)
+	newKet = compressMPS(newKet, cutD, tol=tol, silent=True)
 	return newKet
+
+
+def joinMPO(opA, opB, cutD = 0):
+	if (opA.L != opB.L or opA.s != opB.s):
+		print("Error: inconsistent length / physical dimension!")
+		exit(2)
+	else:
+		L = opA.L
+		s = opA.s
+	newMPO = MPO.MPO(L, 1, s)
+	for i in range(L):
+		tmpA = np.einsum('ijkl,jmpq->imkplq', opA.ops[i].A, opB.ops[i].A)
+		tmpA = tmpA.reshape((s, s, opA.ops[i].Dl*opB.ops[i].Dl,
+								   opA.ops[i].Dr*opB.ops[i].Dr))
+		newMPO.setA(i, tmpA)
+
+	if (cutD > 0):
+		newMPS = MPO.MPSfromMPO(newMPO)
+		compressNewMPS = compressMPS(newMPS, cutD, silent=True)
+		newMPO = MPO.MPOfromMPS(compressNewMPS)
+
+	return newMPO
+
+
+def trace(op):
+	L = op.L
+	s = op.s
+	idMPO = MPO.MPO(L, 1, s)
+	idMPO.setProductOperator(np.identity(s))
+	opMPS = MPO.MPSfromMPO(op)
+	idMPS = MPO.MPSfromMPO(idMPO)
+	return contractMPS(opMPS, idMPS)

@@ -8,12 +8,13 @@ Get SumSx, Sy, Sz (squared)
 
 import sys
 sys.path.append("../core")
+import copy
 import numpy as np
 import numpy.random
 import scipy.linalg as LA
 import MPS
 import MPO
-import copy
+import Contractor as ct
 
 
 PauliSigma = np.array(
@@ -48,10 +49,15 @@ class Ising:
 							 [ [0,0,0,0], [0,0,0,0], [1,0,0,0] ] ])
 			self.hamil.ops[i].A = np.einsum('ijk,kml->mlij', opM, PauliSigma)
 
-	def getUMPO(self, t, TrotterN, imag = True):
-		# Return e^{-Ht} if imag else e^{-iHt}
+	def getUMPOIsing(self, t, imag=True):
+		# Only when the model is translational invariant!
+		hi = self.J[0]*np.kron(PauliSigma[3, :, :], PauliSigma[3, :, :]) + \
+			 self.h[0]*np.kron(PauliSigma[3, :, :], PauliSigma[0, :, :]) + \
+			 self.g[0]*np.kron(PauliSigma[1, :, :], PauliSigma[0, :, :])
 
-		return 0
+		hL = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
+		hR = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
+		return MPO.getUMPO(self.L, 2, hi, hL, hR, t, imag)
 
 
 class Heisenberg:
