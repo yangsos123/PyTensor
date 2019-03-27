@@ -1,12 +1,14 @@
 """
 Define MPS
 Transform an MPS into (mixed) canonical form
+Get entanglement entropy
 Set an MPS to a random or product state
 """
 
 import sys
 import numpy as np
 import numpy.random
+import copy
 import scipy.linalg as LA
 import Site
 import Contractor as ct
@@ -81,6 +83,25 @@ class MPS:
 		self.sites[k].Dr = self.sites[k].A.shape[2]
 		if (cutD > 0 and cutD < self.D):
 			self.D = cutD
+
+
+	def getEntanglementEntropy(self, k, cutD = 0):
+		# Return the entanglement entropy between sites 0 ~ k and k+1 ~ L-1
+		if (k > self.L-1 or k < 0):
+			print("Error: inconsistent length!")
+			exit(2)
+
+		if (cutD == 0):
+			cutD = self.D
+		tmpMPS = copy.deepcopy(self)
+		tmpMPS.gaugeCond(2, cutD = cutD)
+		tmpV = ct.contractMPSR(tmpMPS, tmpMPS, k, tmpMPS.L-1, np.array([[1]]))[0]
+		tmpV = tmpV.reshape((tmpMPS.sites[k].Dl, tmpMPS.sites[k].Dl))
+		eigs, vecs = LA.eig(tmpV)
+		eigs = np.real(eigs)
+		eigsPositive = np.where(eigs>1e-9, eigs, 1.)
+		entropy = np.abs(-np.sum(eigsPositive * np.log(eigsPositive)))
+		return entropy
 
 
 	def adjustD(self, DPrime):

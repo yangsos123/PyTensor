@@ -1,6 +1,7 @@
 import sys
 import random
 import numpy as np
+import numpy.random
 import copy
 
 sys.path.append("core")
@@ -22,17 +23,17 @@ IsingModel = SpMd.Ising(L, Jz, g, h, offset)
 H = IsingModel.hamil
 
 
-"""
-# Test of DMRG & fitApplyMPO
+# Test of DMRG & fitApplyMPO & entanglement entropy
 gs = MPS.MPS(L, D, 2)
-#gs.setProductState(md.Up)
+#gs.setProductState(SpMd.Up)
 gs.setRandomState()
 Emin = ct.dmrg(H, gs, D)
 applyH = ct.fitApplyMPO(H, gs, D, tol=1e-6)
 print("<gs|H|gs>=", Emin)
 print("<gs|Hgs>=", np.real(ct.contractMPS(gs, applyH)))
+print("Ground state entropy", np.exp(gs.getEntanglementEntropy(L//2)))
 print()
-"""
+
 
 
 """
@@ -52,7 +53,7 @@ print("Sum of overlap:", overlapGs)
 print("Overlap of sum:", ct.contractMPS(sumRandMPS, gs))
 """
 
-
+"""
 # Test of time evolution
 UMPO = IsingModel.getUMPOIsing(-0.01, imag=False)
 Sz = MPO.MPO(L, 1, 2)
@@ -72,3 +73,4 @@ for i in range(100):
 				  np.real(ct.contractMPS(UtMPS, SzMPS) / Z))
 	UtMPS = ct.fitApplyMPO(doubleU, UtMPS, D)
 	#UtMPS.gaugeCond(2)
+"""
