@@ -19,8 +19,9 @@ class MPS:
 		self.L = L			# length
 		self.sites = []
 		self.D = D			# D = max{Dl, Dr}
+		self.s = np.ones((L), dtype=int)*s if isinstance(s, int) else s
 		for i in range(L):
-			self.sites.append(Site.site(s,
+			self.sites.append(Site.site(self.s[i],
 				1 if i==0 else D, 1 if i==L-1 else D))
 
 

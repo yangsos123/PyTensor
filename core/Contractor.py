@@ -206,7 +206,7 @@ def dmrg(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 						  ", total wall time", end - totalStartTime, "s")
 				elif (maxRound > 0 and round == maxRound):
 					done = True
-					print("Reached maximum round!")
+					print("Reached maximum round! Energy", energy)
 				else:
 					gs.gaugeCondMixed(pos, pos, pos+1, cutD=cutD)
 					energyLastRound = energy
@@ -225,7 +225,7 @@ def dmrg(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 						  ", total wall time", end - totalStartTime, "s")
 				elif (maxRound > 0 and round == maxRound):
 					done = True
-					print("Reached maximum round!")
+					print("Reached maximum round! Energy", energy)
 				else:
 					gs.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
 					energyLastRound = energy
@@ -260,16 +260,19 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 	if (compress == False):
 		print("Sum up MPS")
 	L = kets[0].L
-	s = kets[0].sites[0].s
-	for i in range(num):
+	sp = np.zeros((L), dtype = int)
+	for j in range(L):
+		sp[j] = kets[0].sites[j].s
+	for i in range(1, num):
 		if kets[i].L != L:
 			print("Error: inconsistent length!")
 			exit(2)
-		if kets[i].sites[0].s != s:
-			print("Error: inconsistent physical dimension!")
-			exit(2)
+		for j in range(L):
+			if kets[i].sites[j].s != kets[0].sites[j].s:
+				print("Error: inconsistent physical dimension!")
+				exit(2)
 	if (givenMPS == False):
-		newMPS = MPS.MPS(L, cutD, s)
+		newMPS = MPS.MPS(L, cutD, sp)
 		newMPS.setRandomState()
 
 	newMPS.gaugeCondMixed(0, 0, L-1, cutD = cutD)
@@ -340,20 +343,19 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 			Vdag = Vdag[0:cutD,:]
 		if (right == True):
 			SV = np.einsum('i,ij->ij', S, Vdag)
-			SV = np.swapaxes(SV.reshape((-1, s, newMPS.sites[pos+1].Dr)), 0, 1)
-			newMPS.setA(pos, U.reshape((s,newMPS.sites[pos].Dl,-1)))
+			SV = np.swapaxes(SV.reshape((-1, newMPS.sites[pos+1].s, newMPS.sites[pos+1].Dr)), 0, 1)
+			newMPS.setA(pos, U.reshape((newMPS.sites[pos].s,newMPS.sites[pos].Dl,-1)))
 			newMPS.setA(pos+1, SV)
 		else:
 			US = np.einsum('ij,j->ij', U, S)
-			Vdag = np.swapaxes(Vdag.reshape((-1, s, newMPS.sites[pos+1].Dr)), 0, 1)
-			newMPS.setA(pos, US.reshape((s,newMPS.sites[pos].Dl,-1)))
+			Vdag = np.swapaxes(Vdag.reshape((-1, newMPS.sites[pos+1].s, newMPS.sites[pos+1].Dr)), 0, 1)
+			newMPS.setA(pos, US.reshape((newMPS.sites[pos].s,newMPS.sites[pos].Dl,-1)))
 			newMPS.setA(pos+1, Vdag)
 
 
 		overlap = np.einsum('ij,ij->', np.conj(M), M)
 		dist = dist0 - overlap
 		dist = np.sqrt(np.abs(dist) / np.real(dist0))
-
 
 		if (dist - lastDist > 1e-8):
 			if (dist - lastDist > 1e-8 * lastDist):
@@ -383,7 +385,7 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 						  "), total wall time", end - totalStartTime, "s")
 				elif (maxRound > 0 and round == maxRound):
 					done = True
-					print("Reached maximum round!")
+					print("Reached maximum round! Dist", dist)
 				else:
 					newMPS.gaugeCondMixed(pos, pos, L-1, cutD=cutD)
 		else:
@@ -399,7 +401,7 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 						  ", total wall time", end - totalStartTime, "s")
 				elif (maxRound > 0 and round == maxRound):
 					done = True
-					print("Reached maximum round!")
+					print("Reached maximum round! Dist", dist)
 				else:
 					newMPS.gaugeCondMixed(pos-1, pos, pos, cutD=cutD)
 
@@ -446,10 +448,10 @@ def exactApplyMPO(op, ket):
 	return newKet
 
 
-def fitApplyMPO(op, ket, cutD, tol=1e-7):
+def fitApplyMPO(op, ket, cutD, tol=1e-7, silent=True, maxRound = 0):
 	# First act exactly, then compress
 	newKet = exactApplyMPO(op, ket)
-	newKet = compressMPS(newKet, cutD, tol=tol, silent=True)
+	newKet = compressMPS(newKet, cutD, tol=tol, silent=silent, maxRound = maxRound)
 	return newKet
 
 

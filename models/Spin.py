@@ -14,6 +14,7 @@ import numpy.random
 import scipy.linalg as LA
 import MPS
 import MPO
+import Common
 import Contractor as ct
 
 
@@ -34,17 +35,17 @@ class Ising:
 	#	+ \sum_{i=1}^{L} (g[i]sigma_i^x + h[i]sigma_{i}^z) + offset
 	def __init__(self, L, J, g, h, offset):
 		self.L = L
-		self.J = J
-		self.g = g
-		self.h = h
+		self.J = Common.toArray(L, J)
+		self.g = Common.toArray(L, g)
+		self.h = Common.toArray(L, h)
 		self.offset = offset
 		self.hamil = MPO.MPO(L, 3, 2)
-		opL = np.array([[ [1,0,0,0], [0,0,0,J[0]], [offset/L,g[0],0,h[0]] ]])
-		opR = np.array([ [[offset/L,g[L-1],0,h[L-1]]], [[0,0,0,1]], [[1,0,0,0]] ])
+		opL = np.array([[ [1,0,0,0], [0,0,0,self.J[0]], [offset/L,self.g[0],0,self.h[0]] ]])
+		opR = np.array([ [[offset/L,self.g[L-1],0,self.h[L-1]]], [[0,0,0,1]], [[1,0,0,0]] ])
 		self.hamil.ops[0].A = np.einsum('ijk,kml->mlij', opL, PauliSigma)
 		self.hamil.ops[L-1].A = np.einsum('ijk,kml->mlij', opR, PauliSigma)
 		for i in range(1, L-1):
-			opM = np.array([ [ [1,0,0,0], [0,0,0,J[i]], [offset/L,g[i],0,h[i]] ],
+			opM = np.array([ [ [1,0,0,0], [0,0,0,self.J[i]], [offset/L,self.g[i],0,self.h[i]] ],
 							 [ [0,0,0,0], [0,0,0,0], [0,0,0,1] ],
 							 [ [0,0,0,0], [0,0,0,0], [1,0,0,0] ] ])
 			self.hamil.ops[i].A = np.einsum('ijk,kml->mlij', opM, PauliSigma)
@@ -65,22 +66,22 @@ class Heisenberg:
 	#	+ \sum_{i=1}^{L} (g[i]sigma_i^x + h[i]sigma_{i}^z) + offset
 	def __init__(self, L, Jx, Jy, Jz, g, h, offset):
 		self.L = L
-		self.Jx = Jx
-		self.Jy = Jy
-		self.Jz = Jz
-		self.g = g
-		self.h = h
+		self.Jx = Common.toArray(L, Jx)
+		self.Jy = Common.toArray(L, Jy)
+		self.Jz = Common.toArray(L, Jz)
+		self.g = Common.toArray(L, g)
+		self.h = Common.toArray(L, h)
 		self.offset = offset
 		self.hamil = MPO.MPO(L, 5, 2)
-		opL = np.array([[ [1,0,0,0], [0,Jx[0],0,0], [0,0,Jy[0],0], [0,0,0,Jz[0]],
-						  [offset/L,g[0],0,h[0]] ]])
-		opR = np.array([ [[offset/L,g[L-1],0,h[L-1]]], [[0,1,0,0]], [[0,0,1,0]],
+		opL = np.array([[ [1,0,0,0], [0,self.Jx[0],0,0], [0,0,self.Jy[0],0], [0,0,0,self.Jz[0]],
+						  [offset/L,self.g[0],0,self.h[0]] ]])
+		opR = np.array([ [[offset/L,self.g[L-1],0,self.h[L-1]]], [[0,1,0,0]], [[0,0,1,0]],
 					     [[0,0,0,1]], [[1,0,0,0]] ])
 		self.hamil.ops[0].A = np.einsum('ijk,kml->mlij', opL, PauliSigma)
 		self.hamil.ops[L-1].A = np.einsum('ijk,kml->mlij', opR, PauliSigma)
 		for i in range(1, L-1):
-			opM = np.array([ [ [1,0,0,0], [0,Jx[i],0,0], [0,0,Jy[i],0],
-							   [0,0,0,Jz[i]], [offset/L,g[i],0,h[i]] ],
+			opM = np.array([ [ [1,0,0,0], [0,self.Jx[i],0,0], [0,0,self.Jy[i],0],
+							   [0,0,0,self.Jz[i]], [offset/L,self.g[i],0,self.h[i]] ],
 							 [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,1,0,0] ],
 							 [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,1,0] ],
 							 [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,1] ],

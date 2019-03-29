@@ -12,6 +12,7 @@ import numpy.random
 import scipy.linalg as LA
 import MPS
 import MPO
+import Common
 import Contractor as ct
 
 
@@ -20,16 +21,19 @@ class BoseHubbard:
 	#     + \sum_{i=1}^{L} U_i n_i (n_i - 1) / 2
 	#	  + \sum_{i=1}^{L} (- \mu_i n_i + V_i n_i)
 	#     + \sum_{i=1}^{L-1} V_{int} n_i n_{i+1}
+	#	  + offset
 	# Maximum occupation number N
 	def __init__(self, L, Nmax, t, U, mu, V, Vint, offset):
 		self.L = L
 		self.d = Nmax + 1
-		self.t = t
-		self.U = U
-		self.mu = mu
-		self.V = V
-		self.Vint = Vint
+		self.t = Common.toArray(L, t)
+		self.U = Common.toArray(L, U)
+		self.mu = Common.toArray(L, mu)
+		self.V = Common.toArray(L, V)
+		self.Vint = Common.toArray(L, Vint)
 		self.hamil = MPO.MPO(L, 5, self.d)
+		self.offset = offset
+		delta = offset / L
 
 		self.Z = np.zeros((5, self.d, self.d), dtype = complex)
 		self.Z[0,:,:] = np.identity(self.d, dtype = complex)				# Id
@@ -45,31 +49,34 @@ class BoseHubbard:
 		opL[0,3,4] = 1
 		opL[0,4,4] = self.V[0]-self.mu[0]
 		opL[0,4,1] = self.U[0]/2
-		self.hamil.setA(0, np.einsum('ijk,kmn->mnij', opL, Z))
+		opL[0,4,0] = delta
+		self.hamil.setA(0, np.einsum('ijk,kmn->mnij', opL, self.Z))
 		opR = np.zeros((5, 1, 5), dtype=complex)
-		opR[0,0,4] = self.V[0]-self.mu[0]
-		opR[0,0,1] = self.U[0]/2
-		opR[1,0,3] = -self.t[i]
-		opR[2,0,2] = -self.t[i]
-		opR[3,0,4] = Vint
+		opR[0,0,4] = self.V[self.L-1]-self.mu[self.L-1]
+		opR[0,0,1] = self.U[self.L-1]/2
+		opR[0,0,0] = delta
+		opR[1,0,3] = -self.t[self.L-1]
+		opR[2,0,2] = -self.t[self.L-1]
+		opR[3,0,4] = self.Vint[self.L-2]
 		opR[4,0,0] = 1
-		self.hamil.setA(L-1, np.einsum('ijk,kmn->mnij', opR, Z))
+		self.hamil.setA(L-1, np.einsum('ijk,kmn->mnij', opR, self.Z))
 		for i in range(1,L-1):
 			opM = np.zeros((5, 5, 5), dtype=complex)
 			opM[0,0,0] = 1
 			opM[0,1,2] = 1
 			opM[0,2,3] = 1
 			opM[0,3,4] = 1
-			opM[0,4,4] = self.V[0]-self.mu[0]
-			opM[0,4,1] = self.U[0]/2
+			opM[0,4,4] = self.V[i]-self.mu[i]
+			opM[0,4,1] = self.U[i]/2
+			opM[0,4,0] = delta
 			opM[1,4,3] = -self.t[i]
 			opM[2,4,2] = -self.t[i]
-			opM[3,4,4] = Vint
+			opM[3,4,4] = self.Vint[i-1]
 			opM[4,4,0] = 1
-			self.hamil.setA(i, np.einsum('ijk,kmn->mnij', opM, Z))
+			self.hamil.setA(i, np.einsum('ijk,kmn->mnij', opM, self.Z))
 
 
-def getSumNMPO(L, Nmax)
+def getSumNMPO(L, Nmax):
 	d = Nmax + 1
 	Z = np.zeros((2, d, d), dtype = complex)
 	Z[0,:,:] = np.identity(d, dtype = complex)			# Id

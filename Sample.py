@@ -9,29 +9,37 @@ sys.path.append("models")
 import MPS
 import MPO
 import Spin as Sp
+import Boson as Bs
 import Contractor as ct
 
-L = 20
-D = 20
-Jx = 1.0*np.ones(L)
-Jy = 1.*np.ones(L)
-Jz = 1.*np.ones(L)
-g = -1.05*np.ones(L)
-h = 0.5*np.ones(L)
+L = 10
+D = 10
+Jx = 1.
+Jy = 1.
+Jz = 1.
+g = -1.05
+h = 0.5
 offset = 0
+Nmax = 4
 IsingModel = Sp.Ising(L, Jz, g, h, offset)
-H = IsingModel.hamil
+HeisenbergModel = Sp.Heisenberg(L, Jx, Jy, Jz, g, h, offset)
+BoseHubbardModel = Bs.BoseHubbard(L, Nmax, t=1., U=0.1, mu=1., V=0.5, Vint=0.2, offset=0)
 
 
 # Test of DMRG & fitApplyMPO & entanglement entropy
-gs = MPS.MPS(L, D, 2)
+#H = IsingModel.hamil
+#H = HeisenbergModel.hamil
+#gs = MPS.MPS(L, D, 2)
 #gs.setProductState(Sp.Up)
+
+H = BoseHubbardModel.hamil
+gs = MPS.MPS(L, D, Nmax+1)
 gs.setRandomState()
 Emin = ct.dmrg(H, gs, D)
-applyH = ct.fitApplyMPO(H, gs, D, tol=1e-6)
-print("<gs|H|gs>=", Emin)
-print("<gs|Hgs>=", np.real(ct.contractMPS(gs, applyH)))
-print("Ground state entropy", np.exp(gs.getEntanglementEntropy(L//2)))
+applyH = ct.fitApplyMPO(H, gs, 20, tol=1e-6, silent=False, maxRound = 100)
+print("<gs|H|gs> =", Emin)
+print("<gs|H gs> =", np.real(ct.contractMPS(gs, applyH)))
+print("Ground state entanglement entropy", np.exp(gs.getEntanglementEntropy(L//2)))
 print()
 
 
@@ -52,6 +60,7 @@ sumRandMPS = ct.sumMPS(randMPS, coef, D, silent=True)
 print("Sum of overlap:", overlapGs)
 print("Overlap of sum:", ct.contractMPS(sumRandMPS, gs))
 """
+
 
 """
 # Test of time evolution

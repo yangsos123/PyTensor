@@ -17,10 +17,10 @@ class MPO:
 	def __init__(self, L, D, s):
 		self.L = L
 		self.D = D
-		self.s = s
+		self.s = np.ones((L), dtype=int)*s if isinstance(s, int) else s
 		self.ops = []
 		for i in range(L):
-			self.ops.append(SiteOp.siteOp(s, 1 if i==0 else D,
+			self.ops.append(SiteOp.siteOp(self.s[i], 1 if i==0 else D,
 											 1 if i==L-1 else D))
 
 	def setA(self, k, Ak):
