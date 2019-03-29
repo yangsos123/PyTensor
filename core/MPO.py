@@ -31,8 +31,13 @@ class MPO:
 			print("Error: k",k,"out of range!")
 			exit(2)
 		else:
+			if (Ak.shape[0]!=self.s[k]):
+				print(Ak.shape[0])
+				print(self.s[k])
+				print("Warning: inconsistent physical dimension!")
 			self.ops[k].A = Ak
 			self.ops[k].s = Ak.shape[0]
+			self.s[k] = Ak.shape[0]
 			self.ops[k].Dl = Ak.shape[2]
 			self.ops[k].Dr = Ak.shape[3]
 			if (Ak.shape[2]>self.D):
@@ -47,6 +52,7 @@ class MPO:
 			self.ops[i].Dl = 1
 			self.ops[i].Dr = 1
 			self.ops[i].s = s
+			self.s[i] = s
 		self.D = 1
 
 
@@ -89,7 +95,7 @@ def extendMPO(simpleMPO):
 	return doubleMPO
 
 
-def getUMPO(L, s, hi, hrestL, hrestR, t, imag = True):
+def getUMPO(L, s, hi, hrestL, hrestR, t, imag = True, cutD = 0):
 	# Return e^{-Ht} if imag else e^{-iHt}
 	# e^{-iHt} ~ e^{-iH_odd t/2}e^{-iH_even t}e^{-iH_odd t/2}
 	# t should be a small value; Error ~ O(t^3)
@@ -146,6 +152,6 @@ def getUMPO(L, s, hi, hrestL, hrestR, t, imag = True):
 	if (L%2==0):
 		UoddHalf.setA(L-1, exphrestR)
 
-	UMPO = ct.joinMPO(UoddHalf, Ueven)
-	UMPO = ct.joinMPO(UMPO, UoddHalf)
+	UMPO = ct.joinMPO(UoddHalf, Ueven, cutD=cutD)
+	UMPO = ct.joinMPO(UMPO, UoddHalf, cutD=cutD)
 	return UMPO

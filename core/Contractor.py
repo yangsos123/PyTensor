@@ -159,7 +159,7 @@ def dmrg(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 
 		Hp = np.einsum('ijk,pqjn->ikpqn', opL, hamil.ops[pos].A)
 		Hp = np.einsum('ikpqn,mnl->pimqkl', Hp, opR)
-		HpDim = gs.sites[pos].s*gs.sites[pos].Dl*gs.sites[pos].Dr
+		HpDim = gs.s[pos]*gs.sites[pos].Dl*gs.sites[pos].Dr
 		Hp = Hp.reshape((HpDim, HpDim))
 		"""
 		Hp =
@@ -173,7 +173,7 @@ def dmrg(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 		w, M = sp_linalg.eigs(Hp, k=1, which='SR')
 		newEnergy = np.real(w[0])
 		newSitePos = M[:,0]
-		gs.sites[pos].A = newSitePos.reshape((gs.sites[pos].s,
+		gs.sites[pos].A = newSitePos.reshape((gs.s[pos],
 			gs.sites[pos].Dl, gs.sites[pos].Dr))
 
 		if (newEnergy-energy > 1e-8 and newEnergy-energy > np.abs(energy)*1e-10):
@@ -261,18 +261,16 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 		print("Sum up MPS")
 	L = kets[0].L
 	sp = np.zeros((L), dtype = int)
-	for j in range(L):
-		sp[j] = kets[0].sites[j].s
 	for i in range(1, num):
 		if kets[i].L != L:
 			print("Error: inconsistent length!")
 			exit(2)
 		for j in range(L):
-			if kets[i].sites[j].s != kets[0].sites[j].s:
+			if kets[i].s[j] != kets[0].s[j]:
 				print("Error: inconsistent physical dimension!")
 				exit(2)
 	if (givenMPS == False):
-		newMPS = MPS.MPS(L, cutD, sp)
+		newMPS = MPS.MPS(L, cutD, kets[0].s)
 		newMPS.setRandomState()
 
 	newMPS.gaugeCondMixed(0, 0, L-1, cutD = cutD)
@@ -318,8 +316,8 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 			opL.append(tmpOpL)
 			opR.append(tmpOpR)
 
-		M = np.zeros((newMPS.sites[pos].s,newMPS.sites[pos].Dl,
-				      newMPS.sites[pos+1].s,newMPS.sites[pos+1].Dr),
+		M = np.zeros((newMPS.s[pos],newMPS.sites[pos].Dl,
+				      newMPS.s[pos+1],newMPS.sites[pos+1].Dr),
 					 dtype=complex)
 		for i in range(num):
 			tmpM = np.einsum('ij,pjk->ipk', opL[i], kets[i].sites[pos].A)
@@ -343,13 +341,13 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 			Vdag = Vdag[0:cutD,:]
 		if (right == True):
 			SV = np.einsum('i,ij->ij', S, Vdag)
-			SV = np.swapaxes(SV.reshape((-1, newMPS.sites[pos+1].s, newMPS.sites[pos+1].Dr)), 0, 1)
-			newMPS.setA(pos, U.reshape((newMPS.sites[pos].s,newMPS.sites[pos].Dl,-1)))
+			SV = np.swapaxes(SV.reshape((-1, newMPS.s[pos+1], newMPS.sites[pos+1].Dr)), 0, 1)
+			newMPS.setA(pos, U.reshape((newMPS.s[pos],newMPS.sites[pos].Dl,-1)))
 			newMPS.setA(pos+1, SV)
 		else:
 			US = np.einsum('ij,j->ij', U, S)
-			Vdag = np.swapaxes(Vdag.reshape((-1, newMPS.sites[pos+1].s, newMPS.sites[pos+1].Dr)), 0, 1)
-			newMPS.setA(pos, US.reshape((newMPS.sites[pos].s,newMPS.sites[pos].Dl,-1)))
+			Vdag = np.swapaxes(Vdag.reshape((-1, newMPS.s[pos+1], newMPS.sites[pos+1].Dr)), 0, 1)
+			newMPS.setA(pos, US.reshape((newMPS.s[pos],newMPS.sites[pos].Dl,-1)))
 			newMPS.setA(pos+1, Vdag)
 
 
@@ -439,10 +437,10 @@ def exactApplyMPO(op, ket):
 		exit(2)
 	else:
 		L = ket.L
-	newKet = MPS.MPS(L,1,1)
+	newKet = MPS.MPS(L,1,op.s)
 	for i in range(L):
 		tmp = np.einsum('ijkl,jmn->ikmln', op.ops[i].A, ket.sites[i].A)
-		tmp = tmp.reshape((op.ops[i].s, ket.sites[i].Dl*op.ops[i].Dl,
+		tmp = tmp.reshape((op.s[i], ket.sites[i].Dl*op.ops[i].Dl,
 								  ket.sites[i].Dr*op.ops[i].Dr))
 		newKet.setA(i, tmp)
 	return newKet
@@ -456,6 +454,7 @@ def fitApplyMPO(op, ket, cutD, tol=1e-7, silent=True, maxRound = 0):
 
 
 def joinMPO(opA, opB, cutD = 0):
+	# Return the product of two MPOs
 	if (opA.L != opB.L or opA.s != opB.s):
 		print("Error: inconsistent length / physical dimension!")
 		exit(2)
@@ -470,6 +469,7 @@ def joinMPO(opA, opB, cutD = 0):
 		newMPO.setA(i, tmpA)
 
 	if (cutD > 0):
+		# Compress MPO
 		newMPS = MPO.MPSfromMPO(newMPO)
 		compressNewMPS = compressMPS(newMPS, cutD, silent=True)
 		newMPO = MPO.MPOfromMPS(compressNewMPS)
@@ -478,6 +478,7 @@ def joinMPO(opA, opB, cutD = 0):
 
 
 def trace(op):
+	# Return the trace of an MPO
 	L = op.L
 	s = op.s
 	idMPO = MPO.MPO(L, 1, s)

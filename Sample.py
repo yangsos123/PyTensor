@@ -12,8 +12,8 @@ import Spin as Sp
 import Boson as Bs
 import Contractor as ct
 
-L = 10
-D = 10
+L = 20
+D = 40
 Jx = 1.
 Jy = 1.
 Jz = 1.
@@ -26,22 +26,32 @@ HeisenbergModel = Sp.Heisenberg(L, Jx, Jy, Jz, g, h, offset)
 BoseHubbardModel = Bs.BoseHubbard(L, Nmax, t=1., U=0.1, mu=1., V=0.5, Vint=0.2, offset=0)
 
 
-# Test of DMRG & fitApplyMPO & entanglement entropy
+# Test of DMRG & fitApplyMPO & entanglement entropy & total spin projector
 #H = IsingModel.hamil
-#H = HeisenbergModel.hamil
-#gs = MPS.MPS(L, D, 2)
+H = HeisenbergModel.hamil
+gs = MPS.MPS(L, D, 2)
 #gs.setProductState(Sp.Up)
 
-H = BoseHubbardModel.hamil
-gs = MPS.MPS(L, D, Nmax+1)
+#H = BoseHubbardModel.hamil
+#gs = MPS.MPS(L, D, Nmax+1)
 gs.setRandomState()
 Emin = ct.dmrg(H, gs, D)
-applyH = ct.fitApplyMPO(H, gs, 20, tol=1e-6, silent=False, maxRound = 100)
+applyH = ct.fitApplyMPO(H, gs, D, tol=1e-4, silent=False, maxRound = 20)
 print("<gs|H|gs> =", Emin)
 print("<gs|H gs> =", np.real(ct.contractMPS(gs, applyH)))
-print("Ground state entanglement entropy", np.exp(gs.getEntanglementEntropy(L//2)))
+print("Ground state entanglement entropy is",
+	  np.exp(gs.getEntanglementEntropy(L//2)))
 print()
 
+totSzMPO = Sp.getSumSzMPO(L)
+print("Total spin of ground state if",
+	  np.real(ct.contractMPSMPO(gs, totSzMPO, gs)))
+print()
+totS = 2
+P = Sp.getSumSzProjector(L, totS)
+gsp = ct.fitApplyMPO(P, gs, D, tol=1e-4, silent=False, maxRound = 20)
+print("Total spin after being projected to S =", totS, "is",
+	  np.real(ct.contractMPSMPO(gsp, totSzMPO, gsp)/ct.contractMPS(gsp,gsp)))
 
 
 """

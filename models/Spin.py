@@ -3,7 +3,8 @@ Currently only support spin-half models
 Generate Hamiltonians / time evolution MPOs of
 	Ising model
 	Heiseneberg model
-Get SumSx, Sy, Sz (squared)
+Get MPO of SumSx, Sy, Sz (squared)
+Get MPO of projector to certain total spin
 """
 
 import sys
@@ -50,7 +51,7 @@ class Ising:
 							 [ [0,0,0,0], [0,0,0,0], [1,0,0,0] ] ])
 			self.hamil.ops[i].A = np.einsum('ijk,kml->mlij', opM, PauliSigma)
 
-	def getUMPOIsing(self, t, imag=True):
+	def getUMPOIsing(self, t, imag=True, cutD=0):
 		# Only when the model is translational invariant!
 		hi = self.J[0]*np.kron(PauliSigma[3, :, :], PauliSigma[3, :, :]) + \
 			 self.h[0]*np.kron(PauliSigma[3, :, :], PauliSigma[0, :, :]) + \
@@ -58,7 +59,7 @@ class Ising:
 
 		hL = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
 		hR = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
-		return MPO.getUMPO(self.L, 2, hi, hL, hR, t, imag)
+		return MPO.getUMPO(self.L, 2, hi, hL, hR, t, imag=imag, cutD=cutD)
 
 
 class Heisenberg:
@@ -89,7 +90,7 @@ class Heisenberg:
 						   ])
 			self.hamil.ops[i].A = np.einsum('ijk,kml->mlij', opM, PauliSigma)
 
-	def getUMPOHeisenberg(self, t, imag=True):
+	def getUMPOHeisenberg(self, t, imag=True, cutD=0):
 		# Only when the model is translational invariant!
 		hi = self.Jx[0]*np.kron(PauliSigma[1, :, :], PauliSigma[1, :, :]) + \
 			 self.Jy[0]*np.kron(PauliSigma[2, :, :], PauliSigma[2, :, :]) + \
@@ -99,7 +100,7 @@ class Heisenberg:
 
 		hL = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
 		hR = self.h[0]*PauliSigma[3, :, :] + self.g[0]*PauliSigma[1, :, :]
-		return MPO.getUMPO(self.L, 2, hi, hL, hR, t, imag)
+		return MPO.getUMPO(self.L, 2, hi, hL, hR, t, imag=imag, cutD=cutD)
 
 
 def getSumSxMPO(L):
@@ -187,3 +188,37 @@ def getSumSz2MPO(L):
 						 [ [0,0,0,0], [0,0,0,0], [1,0,0,0] ] ])
 		sumSz2.ops[i].A = np.einsum('ijk,kml->mlij', opM, PauliSigma)
 	return sumSz2
+
+
+def getSumSzProjector(L, S):
+	# Return the projector of total spin S
+	# S is twice the physical spin (so that it is an integer)
+	# L and S have to be simultaneously even or odd
+	if (L%2 != S%2):
+		print("Error: impossible total spin")
+		exit(2)
+	Z = np.zeros((2,2,2), dtype=complex)
+	Z[0,0,0] = 1
+	Z[1,1,1] = 1
+	P = MPO.MPO(L, 1, 2)
+	Smin = 0
+	Smax = 0
+	for i in range(L):
+		Dl = (Smax - Smin) // 2 + 1
+		tmpA = np.zeros((Dl, Dl+1, 2))
+		np.fill_diagonal(tmpA[:,:,0], 1)
+		np.fill_diagonal(tmpA[:,1:,1], 1)
+
+		if (Smax + 2 - L + i <= S):
+			Smax += 1
+		else:
+			Smax -= 1
+			tmpA = tmpA[:, 1:]
+		if (Smin - 2 + L - i >= S):
+			Smin -= 1
+		else:
+			Smin += 1
+			tmpA = tmpA[:, :-1]
+		tmpA = np.einsum('ijk,mnk->mnij', tmpA, Z)
+		P.setA(i, tmpA)
+	return P

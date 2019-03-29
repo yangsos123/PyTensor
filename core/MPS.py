@@ -29,8 +29,13 @@ class MPS:
 		if (k<0 or k>=self.L):
 			print("Error: k",k,"out of range!")
 			exit(2)
+		if (self.s[k] != Ak.shape[0]):
+			print(Ak.shape[0])
+			print(self.s[k])
+			print("Warning: inconsistent physical dimension!")
 		self.sites[k].A = Ak
 		self.sites[k].s = Ak.shape[0]
+		self.s[k] = Ak.shape[0]
 		self.sites[k].Dl = Ak.shape[1]
 		self.sites[k].Dr = Ak.shape[2]
 
