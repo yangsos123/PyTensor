@@ -4,16 +4,16 @@ import numpy as np
 import numpy.random
 import copy
 
-sys.path.append("core")
-sys.path.append("models")
+sys.path.append("../core")
+sys.path.append("../models")
 import MPS
 import MPO
 import Spin as Sp
 import Boson as Bs
 import Contractor as ct
 
-L = 20
-D = 40
+L = 10
+D = 20
 Jx = 1.
 Jy = 1.
 Jz = 1.
@@ -36,8 +36,13 @@ gs = MPS.MPS(L, D, 2)
 #gs = MPS.MPS(L, D, Nmax+1)
 gs.setRandomState()
 Emin = ct.dmrg(H, gs, D)
+gs.saveMPS("saveGsMPS")
+H.saveMPO("saveHMPO")
 applyH = ct.fitApplyMPO(H, gs, D, tol=1e-4, silent=False, maxRound = 20)
-print("<gs|H|gs> =", Emin)
+gsFile = MPS.loadMPS("saveGsMPS")
+HFile = MPO.loadMPO("saveHMPO")
+print("Emin =", Emin)
+print("<gsF|HF|gsF> =", np.real(ct.contractMPSMPO(gsFile, HFile, gsFile)))
 print("<gs|H gs> =", np.real(ct.contractMPS(gs, applyH)))
 print("Ground state entanglement entropy is",
 	  np.exp(gs.getEntanglementEntropy(L//2)))
@@ -49,7 +54,7 @@ print("Total spin of ground state if",
 print()
 totS = 2
 P = Sp.getSumSzProjector(L, totS)
-gsp = ct.fitApplyMPO(P, gs, D, tol=1e-4, silent=False, maxRound = 20)
+gsp = ct.exactApplyMPO(P, gs)
 print("Total spin after being projected to S =", totS, "is",
 	  np.real(ct.contractMPSMPO(gsp, totSzMPO, gsp)/ct.contractMPS(gsp,gsp)))
 

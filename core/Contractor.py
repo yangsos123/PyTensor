@@ -35,8 +35,6 @@ def contractMPSL(bra, ket, start, end, left):
 	if (bra.L != ket.L):
 		print("Error: inconsistent length!")
 		exit(2)
-	else:
-		L = bra.L
 
 	allRes = []
 	res = np.einsum('ij,kil->jkl', left, np.conj(bra.sites[start].A))
@@ -54,8 +52,6 @@ def contractMPSR(bra, ket, start, end, right):
 	if (bra.L != ket.L):
 		print("Error: inconsistent length!")
 		exit(2)
-	else:
-		L = bra.L
 
 	allRes = []
 	res = np.einsum('ij,kli->jkl', right, np.conj(bra.sites[end].A))
@@ -79,8 +75,6 @@ def contractMPSMPOL(bra, op, ket, start, end, left):
 	if (bra.L != ket.L or bra.L != op.L):
 		print("Error: inconsistent length!")
 		exit(2)
-	else:
-		L = bra.L
 
 	allRes = []
 	res = np.einsum('ijk,pim->jkpm', left, np.conj(bra.sites[start].A))
@@ -99,8 +93,7 @@ def contractMPSMPOR(bra, op, ket, start, end, right):
 	if (bra.L != ket.L or bra.L != op.L):
 		print("Error: inconsistent length!")
 		exit(2)
-	else:
-		L = bra.L
+	
 	allRes = []
 	res = np.einsum('ijk,pmi->jkpm', right, np.conj(bra.sites[end].A))
 	res = np.einsum('jkpm,pqrj->kmqr', res, op.ops[end].A)
@@ -130,6 +123,7 @@ def dmrg(hamil, gs, cutD, tol = 1e-8, maxRound = 0, silent=False):
 	gs.adjustD(cutD)
 	gs.gaugeCondMixed(0,0,L-1, cutD=cutD)
 	idMat = np.array([[[1]]], dtype=complex)
+	contractL = contractMPSMPOL(gs, hamil, gs, 0, 0, idMat)
 	contractR = contractMPSMPOR(gs, hamil, gs, 0, L-1, idMat)
 	energy = np.real(contractR[0][0,0,0] / contractMPS(gs, gs))
 	energyLastRound = energy
@@ -260,7 +254,6 @@ def sumMPS(kets, coef, cutD, givenMPS = False, newMPS = 0,
 	if (compress == False):
 		print("Sum up MPS")
 	L = kets[0].L
-	sp = np.zeros((L), dtype = int)
 	for i in range(1, num):
 		if kets[i].L != L:
 			print("Error: inconsistent length!")
@@ -446,7 +439,7 @@ def exactApplyMPO(op, ket):
 	return newKet
 
 
-def fitApplyMPO(op, ket, cutD, tol=1e-7, silent=True, maxRound = 0):
+def fitApplyMPO(op, ket, cutD, tol=1e-4, silent=True, maxRound = 20):
 	# First act exactly, then compress
 	newKet = exactApplyMPO(op, ket)
 	newKet = compressMPS(newKet, cutD, tol=tol, silent=silent, maxRound = maxRound)

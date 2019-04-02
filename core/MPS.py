@@ -6,6 +6,7 @@ Set an MPS to a random or product state
 """
 
 import sys
+import os
 import numpy as np
 import numpy.random
 import copy
@@ -165,3 +166,36 @@ class MPS:
 			self.sites[i].Dl = 1
 			self.sites[i].Dr = 1
 		self.D = 1
+
+
+	def saveMPS(self, directory):
+		if os.path.isdir(directory):
+			print("Directory already exists! Will cover the saved MPS.")
+		else:
+			os.makedirs(directory)
+			print("Directory " + directory + " created! Will save MPO")
+
+		np.savetxt(directory+"/L", np.array([self.L]), fmt='%i')
+		np.savetxt(directory+"/s", self.s, fmt='%i')
+		for i in range(self.L):
+			np.savetxt(directory+"/D_"+str(i),
+				np.array([self.sites[i].Dl,self.sites[i].Dr]), fmt='%i')
+			tmpA = self.sites[i].A.reshape(-1)
+			np.savetxt(directory+"/A_"+str(i),
+				numpy.column_stack([tmpA.real, tmpA.imag]))
+
+
+def loadMPS(directory):
+	if (not os.path.isdir(directory)):
+		print("Error: no such MPS directory!")
+		exit(2)
+	else:
+		L = np.loadtxt(directory+"/L", dtype=int)
+		s = np.loadtxt(directory+"/s", dtype=int)
+		newMPS = MPS(L, 1, s)
+		for i in range(L):
+			Ds = np.loadtxt(directory+"/D_"+str(i), dtype=int)
+			AsReal, AsImag = np.loadtxt(directory+"/A_"+str(i), unpack=True)
+			newMPS.setA(i,
+				(AsReal+1j*AsImag).reshape(s[i], Ds[0], Ds[1]))
+	return newMPS

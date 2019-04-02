@@ -5,6 +5,7 @@ Get MPO of real / imaginary revolution operator
 """
 
 import sys
+import os
 import numpy as np
 import numpy.random
 import scipy.linalg as LA
@@ -54,6 +55,38 @@ class MPO:
 			self.ops[i].s = s
 			self.s[i] = s
 		self.D = 1
+
+	def saveMPO(self, directory):
+		if os.path.isdir(directory):
+			print("Directory already exists! Will cover the saved MPO.")
+		else:
+			os.makedirs(directory)
+			print("Directory " + directory + " created! Will save MPO")
+
+		np.savetxt(directory+"/L", np.array([self.L]), fmt='%i')
+		np.savetxt(directory+"/s", self.s, fmt='%i')
+		for i in range(self.L):
+			np.savetxt(directory+"/D_"+str(i),
+				np.array([self.ops[i].Dl,self.ops[i].Dr]), fmt='%i')
+			tmpA = self.ops[i].A.reshape(-1)
+			np.savetxt(directory+"/A_"+str(i),
+				numpy.column_stack([tmpA.real, tmpA.imag]))
+
+
+def loadMPO(directory):
+	if (not os.path.isdir(directory)):
+		print("Error: no such MPO directory!")
+		exit(2)
+	else:
+		L = np.loadtxt(directory+"/L", dtype=int)
+		s = np.loadtxt(directory+"/s", dtype=int)
+		newMPO = MPO(L, 1, s)
+		for i in range(L):
+			Ds = np.loadtxt(directory+"/D_"+str(i), dtype=int)
+			AsReal, AsImag = np.loadtxt(directory+"/A_"+str(i), unpack=True)
+			newMPO.setA(i,
+				(AsReal+1j*AsImag).reshape(s[i], s[i], Ds[0], Ds[1]))
+	return newMPO
 
 
 def MPSfromMPO(mpo):
