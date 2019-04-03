@@ -1,7 +1,6 @@
 """
-Generate Hamiltonians / time evolution MPOs of
-	Bose-Hubbard model
-Haven't been tested yet
+Generate Hamiltonians / time evolution MPOs of Bose-Hubbard model.
+Haven't been tested yet.
 """
 
 import sys
@@ -17,13 +16,22 @@ from models import Common
 
 
 class BoseHubbard:
-    # H = - \sum_{i=1}^{L-1} t_i (b_i^dag b_{i+1} + h.c.)
-    #     + \sum_{i=1}^{L} U_i n_i (n_i - 1) / 2
-    #	  + \sum_{i=1}^{L} (- \mu_i n_i + V_i n_i)
-    #     + \sum_{i=1}^{L-1} V_{int} n_i n_{i+1}
-    #	  + offset
-    # Maximum occupation number N
+    """
+    Class of Bose-Hubbard model. The Hamiltonian is:
+    H = - \sum_{i=1}^{L-1} t_i (b_i^dag b_{i+1} + h.c.)
+        + \sum_{i=1}^{L} U_i n_i (n_i - 1) / 2
+        + \sum_{i=1}^{L} (- \mu_i n_i + V_i n_i)
+        + \sum_{i=1}^{L-1} V_{int} n_i n_{i+1}
+        + offset
+    """
+
     def __init__(self, L, Nmax, t, U, mu, V, Vint, offset):
+        """
+        Initialization.
+        Input: system size L (int), maximum occupation number N (int), t, U, mu, V, Vint
+               (all are either float or numpy float array of length L) and offset (float).
+        Will generate the MPO of Hamiltonian in self.hamil.
+        """
         self.L = L
         self.d = Nmax + 1
         self.t = Common.toArray(L, t)
@@ -80,6 +88,10 @@ class BoseHubbard:
 
 
 def getSumNMPO(L, Nmax):
+    """
+    Input: system size L, maximum occupation number Nmax.
+    Return: the MPO of sum of occupation numbers at all sites.
+    """
     d = Nmax + 1
     Z = np.zeros((2, d, d), dtype=complex)
     Z[0, :, :] = np.identity(d, dtype=complex)			# Id

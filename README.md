@@ -7,5 +7,11 @@ Usage:
 import sys
 sys.path.append("Direction_to_PyTensor")
 ```
+Then try help() function in python for more information.
+e.g., 
+```
+from core import MPS
+help(MPS)
+```
 
 PyTensor/sample/Sample.py gives an example.

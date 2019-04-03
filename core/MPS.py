@@ -1,8 +1,8 @@
 """
-Define MPS
-Transform an MPS into (mixed) canonical form
-Get entanglement entropy
-Set an MPS to a random or product state
+Define MPS,
+Transform an MPS into (mixed) canonical form,
+Get entanglement entropy,
+Set an MPS to a random or product state.
 """
 
 import os
@@ -16,7 +16,18 @@ from core import Contractor as ct
 
 
 class MPS:
+    """
+    Class for MPS.
+    """
+
     def __init__(self, L, D, s):
+        """
+        Initialize an MPS class with length L (int), bond dimension D (int) and physical dimension s 
+            (int or numpy int array of length L). 
+        D and s can be changed later.
+        self.sites is a list of A matrices in site type (import Site and try help(Site) for more information), 
+            and are initially zero.
+        """
         self.L = L			# length
         self.sites = []
         self.D = D			# D = max{Dl, Dr}
@@ -26,6 +37,10 @@ class MPS:
                                         1 if i == 0 else D, 1 if i == L - 1 else D))
 
     def setA(self, k, Ak):
+        """
+        Set the A matrix of this MPS at site k to Ak (numpy complex array in shape (s, Dl, Dr)).
+        The bond dimension and physical dimension at this site will be changed correspondingly.
+        """
         if (k < 0 or k >= self.L):
             print("Error: k", k, "out of range!")
             exit(2)
@@ -41,9 +56,10 @@ class MPS:
 
     def gaugeCond(self, dir, normal=1, cutD=0, silent=False):
         """
-        Transform MPS into canonical form
-        dir = 1 -> left
-        dir = 2 -> right
+        Transform this MPS into canonical form and return the norm of the MPS.
+        dir = 1 -> left canonical form; dir = 2 -> right.
+        If normal is set to 1, the MPS will be normalized; otherwise the norm will be kept.
+        if cutD > 0, in SVD updates only cutD singular values will be kept.
         """
         if dir == 1:
             if (silent == False):
@@ -69,8 +85,8 @@ class MPS:
     def gaugeCondMixed(self, left, k, right, cutD=0, silent=True):
         """
         Set mixed gauge condition:
-        left - k-1 -> left
-        k+1 - right -> right
+        left - k-1 -> left canonical form.
+        k+1 - right -> right canonical form.
         """
         if (silent == False):
             print("Set mixed gauge condition centered at", k)
@@ -90,7 +106,9 @@ class MPS:
             self.D = cutD
 
     def getEntanglementEntropy(self, k, cutD=0):
-        # Return the entanglement entropy between sites 0 ~ k and k+1 ~ L-1
+        """
+        Return the entanglement entropy between sites 0 ~ k and k+1 ~ L-1
+        """
         if (k > self.L - 1 or k < 0):
             print("Error: inconsistent length!")
             exit(2)
@@ -109,7 +127,9 @@ class MPS:
         return entropy
 
     def adjustD(self, DPrime):
-        # Adjust the bond dimension of MPS to DPrime
+        """
+        Adjust the bond dimension of MPS to DPrime.
+        """
         if (DPrime < self.D):
             # Shrink
             # gaugeCond for small self.D. Otherwise compressMPS in Contractor
@@ -131,7 +151,9 @@ class MPS:
             self.D = DPrime
 
     def applyLocalOperator(self, k, op):
-        # Apply a local operator to MPS
+        """
+        Apply a local operator to this MPS.
+        """
         if (k < 0 or k >= self.L):
             print("Error: k out of range!")
             return False
@@ -144,6 +166,9 @@ class MPS:
             return False
 
     def setRandomState(self):
+        """
+        Set the MPS to a normalized random state.
+        """
         # print("Set random state")
         for i in range(self.L):
             self.sites[i].A = numpy.random.random((self.sites[i].s,
@@ -153,6 +178,9 @@ class MPS:
         self.gaugeCond(2, normal=1, cutD=self.D, silent=True)
 
     def setProductState(self, localState):
+        """
+        Set the MPS to a product operator with localState (numpy complex array of shape (s)).
+        """
         sLocal = localState.shape[0]
         for i in range(self.L):
             self.sites[i].s = sLocal
@@ -162,6 +190,9 @@ class MPS:
         self.D = 1
 
     def saveMPS(self, directory):
+        """
+        Save this MPS to a directory. Each MPS needs one directory.
+        """
         if os.path.isdir(directory):
             print("Directory already exists! Will cover the saved MPS.")
         else:
@@ -179,6 +210,9 @@ class MPS:
 
 
 def loadMPS(directory):
+    """
+    Return an MPS loaded from a directory (saved by savedMPS function in MPS class).
+    """
     if (not os.path.isdir(directory)):
         print("Error: no such MPS directory!")
         exit(2)

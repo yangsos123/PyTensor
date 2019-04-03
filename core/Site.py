@@ -1,5 +1,5 @@
 """
-Define each site for MPS
+Define each site for MPS.
 """
 
 import numpy as np
@@ -8,7 +8,17 @@ import scipy.linalg as LA
 
 
 class site:
+    """
+    Store the MPS information at each site.
+    """
+
     def __init__(self, s, Dl, Dr):
+        """
+        Initialize a site class with physical dimension s, left bond dimension Dl
+            and right bond dimension Dr. They will be stored in self.s, self.Dl
+            and self.Dr correspondingly. self.A will store the A matrix (numpy 
+            complex array of shape (s,Dl,Dr)) and is initially zero.
+        """
         self.s = s			# physical dimension
         self.Dl = Dl		# left bond dimension
         self.Dr = Dr		# right bond dimension
@@ -45,6 +55,9 @@ class site:
         return R
 
     def gaugeL(self, R, cutD):
+        """
+        Similar to gaugeR, but towards the opposite direction.
+        """
         self.A = np.einsum('ijk,kl->ijl', self.A, R)
         self.Dr = self.A.shape[2]
         L = 0

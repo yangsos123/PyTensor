@@ -26,7 +26,6 @@ HeisenbergModel = Sp.Heisenberg(L, Jx, Jy, Jz, g, h, offset)
 BoseHubbardModel = Bs.BoseHubbard(
     L, Nmax, t=1., U=0.1, mu=1., V=0.5, Vint=0.2, offset=0)
 
-
 # Test of DMRG & fitApplyMPO & entanglement entropy & total spin projector
 #H = IsingModel.hamil
 H = HeisenbergModel.hamil
@@ -60,30 +59,27 @@ print("Total spin after being projected to S =", totS, "is",
       np.real(ct.contractMPSMPO(gsp, totSzMPO, gsp) / ct.contractMPS(gsp, gsp)))
 
 
-"""
 # Test of sumMPS
 randMPS = []
 coef = []
 overlapGs = 0
 for i in range(5):
-	tmpMPS = MPS.MPS(L, D, 2)
-	tmpMPS.setRandomState()
-	randMPS.append(tmpMPS)
-	tmpCoef = random.random()
-	coef.append(tmpCoef)
-	overlapGs += ct.contractMPS(tmpMPS, gs) * tmpCoef
+    tmpMPS = MPS.MPS(L, D, 2)
+    tmpMPS.setRandomState()
+    randMPS.append(tmpMPS)
+    tmpCoef = random.random()
+    coef.append(tmpCoef)
+    overlapGs += ct.contractMPS(tmpMPS, gs) * tmpCoef
 sumRandMPS = ct.sumMPS(randMPS, coef, D, silent=True)
 print("Sum of overlap:", overlapGs)
 print("Overlap of sum:", ct.contractMPS(sumRandMPS, gs))
-"""
 
 
-"""
 # Test of time evolution
 UMPO = IsingModel.getUMPOIsing(-0.01, imag=False)
 Sz = MPO.MPO(L, 1, 2)
 Sz.setProductOperator(np.identity(2))
-Sz.setA(L//2, (Sp.PauliSigma[3,:,:]).reshape((2,2,1,1)))
+Sz.setA(L // 2, (Sp.PauliSigma[3, :, :]).reshape((2, 2, 1, 1)))
 SzMPS = MPO.MPSfromMPO(Sz)
 idMPO = MPO.MPO(L, 1, 2)
 idMPO.setProductOperator(np.identity(2))
@@ -93,9 +89,8 @@ HMPS = MPO.MPSfromMPO(H)
 UtMPS = copy.deepcopy(idMPS)
 
 for i in range(100):
-	Z = ct.contractMPS(UtMPS, idMPS)
-	print(i*0.01, np.real(ct.contractMPS(UtMPS, HMPS) / Z),
-				  np.real(ct.contractMPS(UtMPS, SzMPS) / Z))
-	UtMPS = ct.fitApplyMPO(doubleU, UtMPS, D)
-	#UtMPS.gaugeCond(2)
-"""
+    Z = ct.contractMPS(UtMPS, idMPS)
+    print(i * 0.01, np.real(ct.contractMPS(UtMPS, HMPS) / Z),
+          np.real(ct.contractMPS(UtMPS, SzMPS) / Z))
+    UtMPS = ct.fitApplyMPO(doubleU, UtMPS, D)
+    # UtMPS.gaugeCond(2)

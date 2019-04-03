@@ -1,12 +1,12 @@
 """
-Algorithms for MPS and MPO
+Algorithms for MPS and MPO:
 
-Contract MPSs and / or MPOs
-Find ground state of am MPO (DMRG)
-Sum up / compress MPS
-Apply MPO to MPS
-Product of MPOs
-Trace of MPO
+Contract MPS and / or MPO,
+Find ground state of am MPO (DMRG),
+Sum up / compress MPS,
+Apply MPO to MPS,
+Product of MPOs,
+Trace of MPO.
 """
 
 import copy
@@ -48,7 +48,9 @@ def contractMPSL(bra, ket, start, end, left):
 
 
 def contractMPSR(bra, ket, start, end, right):
-    # Similar to contractMPSL, but start from the right
+    """
+    Similar to contractMPSL, but start from the right.
+    """
     if (bra.L != ket.L):
         print("Error: inconsistent length!")
         exit(2)
@@ -65,13 +67,17 @@ def contractMPSR(bra, ket, start, end, right):
 
 
 def contractMPS(bra, ket):
-    # Give the overlap of bra and ket
+    """
+    Return <bra|ket>.
+    """
     left = np.array([[1]])
     return np.complex(contractMPSL(bra, ket, 0, bra.L - 1, left)[-1])
 
 
 def contractMPSMPOL(bra, op, ket, start, end, left):
-    # Similar to contractMPS series, with an operator between bra and ket
+    """
+    Similar to contractMPS series, with an operator between bra and ket.
+    """
     if (bra.L != ket.L or bra.L != op.L):
         print("Error: inconsistent length!")
         exit(2)
@@ -90,6 +96,9 @@ def contractMPSMPOL(bra, op, ket, start, end, left):
 
 
 def contractMPSMPOR(bra, op, ket, start, end, right):
+    """
+    Similar to contractMPS series, with an operator between bra and ket.
+    """
     if (bra.L != ket.L or bra.L != op.L):
         print("Error: inconsistent length!")
         exit(2)
@@ -108,16 +117,19 @@ def contractMPSMPOR(bra, op, ket, start, end, right):
 
 
 def contractMPSMPO(bra, op, ket):
+    """
+    Return <bra|op|ket>.
+    """
     left = np.array([[[1]]])
     return np.complex(contractMPSMPOL(bra, op, ket, 0, bra.L - 1, left)[-1])
 
 
 def dmrg(hamil, gs, cutD, tol=1e-8, maxRound=0, silent=False):
     """
-    DMRG
-    Input an MPO Hamiltonian (hamil) and an initial state (gs)
-    Return the ground state energy and the ground state vector is stored in gs
-    Algorithm: see arXiv:1008.3477v2, Chapter 6.3
+    Finite size DMRG
+    Input an MPO Hamiltonian (hamil) and an initial state (gs).
+    Return the ground state energy and the ground state vector is stored in gs.
+    Algorithm: see arXiv:1008.3477v2, Chapter 6.3.
     """
     L = hamil.L
     gs.adjustD(cutD)
@@ -245,9 +257,9 @@ def dmrg(hamil, gs, cutD, tol=1e-8, maxRound=0, silent=False):
 def sumMPS(kets, coef, cutD, givenMPS=False, newMPS=0,
            tol=1e-7, maxRound=0, silent = False, compress = False):
     """
-    Sum up MPS.
-    Input:  a list of MPS and a list of corresponding coefficients
-    Output: approximation of their sum in MPS with bond dimension cutD
+    Return the sum of MPS's.
+    Input:  a list of MPS and a list of corresponding coefficients.
+    Output: approximation of their sum in MPS with bond dimension cutD.
     Algorithm: see also arXiv:1008.3477v2, Chapter 4.5.2, in compressing MPS.
             Only need to add up all M (P in the paper) with coefficients as weights.
             Here each time two sites are modified together.
@@ -425,6 +437,9 @@ def sumMPS(kets, coef, cutD, givenMPS=False, newMPS=0,
 
 def compressMPS(initMPS, cutD, givenMPS=False, newMPS=0,
                 tol=1e-7, maxRound=0, silent = False):
+    """
+    Return an approximation MPS of initMPS with bond dimension cutD.
+    """
     # Call sumMPS
     print("Compress MPS")
     return sumMPS([initMPS], [1.], cutD, givenMPS=givenMPS, newMPS=newMPS,
@@ -432,7 +447,10 @@ def compressMPS(initMPS, cutD, givenMPS=False, newMPS=0,
 
 
 def exactApplyMPO(op, ket):
-    # Act an MPO on an MPS exactly
+    """
+    Return the result of exactly applying an MPO to an MPS.
+    Warning: the new bond dimension will be the product of the original two!
+    """
     if (op.L != ket.L):
         print("Error: inconsistent length!")
         exit(2)
@@ -448,7 +466,9 @@ def exactApplyMPO(op, ket):
 
 
 def fitApplyMPO(op, ket, cutD, tol=1e-4, silent=True, maxRound=20):
-    # First act exactly, then compress
+    """
+    First apply the MPO exactly, then compress and return the approximation.
+    """
     newKet = exactApplyMPO(op, ket)
     newKet = compressMPS(newKet, cutD, tol=tol,
                          silent=silent, maxRound=maxRound)
@@ -456,7 +476,9 @@ def fitApplyMPO(op, ket, cutD, tol=1e-4, silent=True, maxRound=20):
 
 
 def joinMPO(opA, opB, cutD=0):
-    # Return the product of two MPOs
+    """
+    Return the product of two MPOs. Will make approximation if cutD is set nonzero.
+    """
     if (opA.L != opB.L or opA.s != opB.s):
         print("Error: inconsistent length / physical dimension!")
         exit(2)
@@ -480,7 +502,9 @@ def joinMPO(opA, opB, cutD=0):
 
 
 def trace(op):
-    # Return the trace of an MPO
+    """
+    Return the trace of an MPO without approximation.
+    """
     L = op.L
     s = op.s
     idMPO = MPO.MPO(L, 1, s)

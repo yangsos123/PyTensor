@@ -1,7 +1,7 @@
 """
-Define MPO
-Transform between MPS and MPO
-Get MPO of real / imaginary revolution operator
+Define MPO,
+Transform between MPS and MPO,
+Get MPO of real / imaginary revolution operator.
 """
 
 import os
@@ -15,7 +15,18 @@ from core import Contractor as ct
 
 
 class MPO:
+    """
+    Class for MPO.
+    """
+
     def __init__(self, L, D, s):
+        """
+        Initialize an MPO class with length L (int), bond dimension D (int) and physical dimension s 
+            (int or numpy int array of length L). 
+        D and s can be changed later.
+        self.ops is a list of A matrices in siteOp type (import SiteOp and try help(SiteOp) for more information), 
+            and are initially zero.
+        """
         self.L = L
         self.D = D
         self.s = np.ones((L), dtype=int) * s if isinstance(s, int) else s
@@ -25,6 +36,10 @@ class MPO:
                                           1 if i == L - 1 else D))
 
     def setA(self, k, Ak):
+        """
+        Set the A matrix of this MPO at site k to Ak (numpy complex array in shape (s, s, Dl, Dr)).
+        The bond dimension and physical dimension at this site will be changed correspondingly.
+        """
         if (Ak.shape[0] != Ak.shape[1]):
             print("Error: inconsistent physical dimension!")
             exit(2)
@@ -47,6 +62,9 @@ class MPO:
                 self.D = Ak.shape[3]
 
     def setProductOperator(self, localOp):
+        """
+        Set the MPO to a product operator with localOp (numpy complex array of shape (s, s)).
+        """
         for i in range(self.L):
             s = localOp.shape[0]
             self.ops[i].A = localOp.reshape((s, s, 1, 1))
@@ -57,6 +75,9 @@ class MPO:
         self.D = 1
 
     def saveMPO(self, directory):
+        """
+        Save this MPO to a directory. Each MPO needs one directory.
+        """
         if os.path.isdir(directory):
             print("Directory already exists! Will cover the saved MPO.")
         else:
@@ -74,6 +95,9 @@ class MPO:
 
 
 def loadMPO(directory):
+    """
+    Return an MPO loaded from a directory (saved by savedMPO function in MPO class).
+    """
     if (not os.path.isdir(directory)):
         print("Error: no such MPO directory!")
         exit(2)
@@ -92,8 +116,9 @@ def loadMPO(directory):
 
 def MPSfromMPO(mpo):
     """
+    Return the MPS version of MPO by make physical dimension s*s.
     Input:             Return:
-    mpo:
+    mpo:               mps:
     i1 i2      iL      i1j1 i2j2      iLjL
     ├  ┼ ... ┼ ┤        └    ┴  ... ┴  ┘
     j1 j2      jL
@@ -108,7 +133,9 @@ def MPSfromMPO(mpo):
 
 
 def MPOfromMPS(mps):
-    # Inverse transformation of MPSfromMPO
+    """
+    Inverse transformation of MPSfromMPO.
+    """
     L = mps.L
     mpo = MPO(L, 1, 1)
     for i in range(L):
@@ -119,7 +146,11 @@ def MPOfromMPS(mps):
 
 
 def extendMPO(simpleMPO):
-    # Make an MPO compatible with MPS got from MPSfromMPO
+    """
+    Return an modified MPO (doubleMPO) from the originally one (simpleMPO) so that it is compatible with an
+    MPS (mpsMPO, oringinally mpoMPO) got from MPSfromMPO. 
+    i.e., MPOfromMPO(doubleMPO|mpsMPO>) = simpleMPO*mpoMPO.
+    """
     L = simpleMPO.L
     doubleMPO = MPO(L, 1, 1)
     for i in range(L):
@@ -130,10 +161,17 @@ def extendMPO(simpleMPO):
 
 
 def getUMPO(L, s, hi, hrestL, hrestR, t, imag=True, cutD=0):
-    # Return e^{-Ht} if imag else e^{-iHt}
-    # e^{-iHt} ~ e^{-iH_odd t/2}e^{-iH_even t}e^{-iH_odd t/2}
-    # t should be a small value; Error ~ O(t^3)
-    # Only for neareast neighbours
+    """
+    Input: length of system L (int), physical dimension s (int), 
+           local / nearest neighbour operators hi (1<=i<=L-2) 
+             (numpy complex array of shape (s, s) or (s**2, s**2)),
+           local / nearest neighbour operators hrestL (i=0), hrestR (i=L-1),
+           evolution time t.
+    Return: UMPO = e^{-Ht} if imag else e^{-iHt}.
+
+    This function actually calculate e^{-iHt} ~ e^{-iH_odd t/2}e^{-iH_even t}e^{-iH_odd t/2} and 
+    the error = O(t^3). Try to choose smaller t and apply the UMPO many times.
+    """
     if (imag == True):
         exph = LA.expm(-1j * hi * t)
         exphHalf = LA.expm(-1j * hi * t / 2)
